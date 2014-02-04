@@ -950,20 +950,23 @@
 			max_width = Math.max(width, max_width);
 		}
 
-		// Add the button's width
-		var button_width = findInShadowRoot.call($this, '.button').outerWidth();
-		max_width += button_width;
-
-		// Add some extra pixels to be safe
-		max_width += 10;
-
 		// In modern browsers, use the precise pixel width
 		if(supports.canvas) {
+			// Add the button's width
+			var button_width = findInShadowRoot.call($this, '.button').outerWidth();
+			max_width += button_width;
+	
+			// Add some extra pixels to account for padding
+			max_width += 10;
+			
 			return max_width + 'px';
 		}
 		// In older browsers, approximate using ems
 		else {
-			return (width * .75) + 'em';
+			// Ensure a minimum width
+			max_width = Math.min(max_width, 8);
+			
+			return (max_width * .75) + 'em';
 		}
 	}
 
