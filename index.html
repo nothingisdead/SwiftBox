@@ -1,49 +1,126 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Swiftselect by Knotix</title>
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-    <script src="javascripts/respond.js"></script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <!--[if lt IE 8]>
-    <link rel="stylesheet" href="stylesheets/ie.css">
-    <![endif]-->
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<head>
+		<meta charset="utf-8">
+		<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+		<script src="swift-select.js"></script>
+		<!-- <script src="../FatFinger/fatfinger.js"></script> -->
 
-  </head>
-  <body>
-      <div id="header">
-        <nav>
-          <li class="fork"><a href="https://github.com/Knotix/SwiftSelect">View On GitHub</a></li>
-          <li class="downloads"><a href="https://github.com/Knotix/SwiftSelect/zipball/master">ZIP</a></li>
-          <li class="downloads"><a href="https://github.com/Knotix/SwiftSelect/tarball/master">TAR</a></li>
-          <li class="title">DOWNLOADS</li>
-        </nav>
-      </div><!-- end header -->
+		<style>
+			.demo {
+				margin: 20px;
+				padding: 10px;
+				border: 1px solid #CCC;
+				border-radius: 3px;
+			}
 
-    <div class="wrapper">
+			.code {
+				padding: 10px;
+				border: 1px solid #CCC;
+				background-color: #F6F6F6;
+				box-shadow: 3px 3px 3px rgba(0, 0, 0, .1) inset;
+				overflow: auto;
+			}
+		</style>
 
-      <section>
-        <div id="title">
-          <h1>Swiftselect</h1>
-          <p></p>
-          <hr>
-          <span class="credits left">Project maintained by <a href="https://github.com/Knotix">Knotix</a></span>
-          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></span>
-        </div>
+		<script>
+			function getCode() {
+				$('.demo').not('.processed')
+					.each(function() {
+						var html = $(this).html();
+						html = html
+								.replace(/^\n/, '')
+								.replace(/^\t{3}/gm, '')
+								.replace(/selected=""/g, 'selected')
+								.replace(/\s*getCode\(\);/, '');
 
-        <h1>
-<a name="swiftselect" class="anchor" href="#swiftselect"><span class="octicon octicon-link"></span></a>SwiftSelect</h1>
-      </section>
+						var code = $('<pre></pre>')
+										.addClass('code')
+										.text(html);
 
-    </div>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-    
-  </body>
+						$(this).append(code);
+					})
+					.addClass('processed');
+			}
+		</script>
+	</head>
+	<body>
+		<h1>Smooth Select Demo</h1>
+
+		<div class="demo">
+			<select id="basic_example">
+				<option value="raspberries">Raspberries</option>
+				<option value="blackberries" selected>Blackberries</option>
+				<option value="blueberries">Blueberries</option>
+			</select>
+
+			<script>
+				getCode();
+				$('#basic_example').swiftSelect();
+			</script>
+		</div>
+
+		<div class="demo">
+			<select id="advanced_example"></select>
+
+			<script>
+				getCode();
+				$('#advanced_example').swiftSelect('options', [
+					{
+						value: 'red',
+						text: 'Red'
+					},
+					{
+						value: 'green',
+						text: 'Green'
+					},
+					{
+						value: 'blue',
+						text: 'Blue'
+					}
+				]);
+			</script>
+		</div>
+
+		<div class="demo">
+			<select id="stress_example"></select>
+
+			<script>
+				getCode();
+				var options = [];
+
+				for(var i = 0; i < 20000; ++i) {
+					options.push({
+						value: i,
+						text: 'Example Option ' + i
+					});
+				}
+
+				$('#stress_example').swiftSelect('options', options);
+			</script>
+		</div>
+
+		<div class="demo">
+			<select id="fatfinger_example" multiple></select>
+
+			<script>
+				getCode();
+
+				var vegetables = ['Acorn squash', 'Ahipa', 'Amaranth', 'American groundnut', 'Armenian cucumber', 'Arracacha', 'Asparagus', 'Avocado', 'Azuki bean', 'Bamboo shoot ', 'Beetroot', 'Bell pepper', 'Bitter melon', 'Bitterleaf', 'Black cumin', 'Black-eyed pea', 'Bok choy', 'Broadleaf arrowhead', 'Brussels sprout', 'Cabbage', 'Caigua', 'Camas', 'Canna', 'Cape Gooseberry', 'Cardoon', 'Carrot', 'Cassava', 'Catsear', 'Cayenne pepper', 'Celeriac', 'Celery', 'Celtuce', 'Ceylon spinach', 'Chayote', 'Chickpea', 'Chicory', 'Chili pepper', 'Chinese Mallow', 'Chrysanthemum', 'Corn salad', 'Cress', 'Cucumber', 'Dandelion', 'Dolichos bean', 'Drumstick', 'Eggplant/Aubergine', 'Elephant Garlic', 'Endive', 'Epazote', 'Fat hen', 'Fava bean', 'Fiddlehead', 'Florence fennel', 'Fluted pumpkin', 'French bean', 'Garden Rocket', 'Garlic', 'Globe Artichoke', 'Golden samphire', 'Good King Henry', 'Guar', 'Horse gram', 'Ice plant', 'Indian pea', 'Kai-lan', 'Kohlrabi', 'Komatsuna', 'Kuka', 'Kurrat', 'Lagos bologi', 'Land cress', 'Leek', 'Lentil', 'Lettuce', 'Lizard\'s tail', 'Lotus root', 'Luffa', 'Malabar gourd', 'Melokhia', 'Mizuna greens', 'Moth bean', 'Mung bean', 'Mustard', 'Napa/Chinese Cabbage', 'New Zealand Spinach', 'Nopal', 'Okra', 'Onion', 'Orache', 'Parwal', 'Pattypan squash Snake gourd', 'Pea', 'Pea sprouts/leaves', 'Peanut', 'Perennial cucumber', 'Pigeon pea', 'Polk', 'Prussian asparagus', 'Pumpkin', 'Radicchio', 'Rice bean', 'Runner bean', 'Samphire', 'Sea beet', 'Seakale', 'Shallot', 'Sierra Leone bologi', 'Soko', 'Sorrel', 'Soybean', 'Spinach', 'Squash', 'Summer purslane', 'Sweet pepper', 'Sweetcorn', 'Swiss chard', 'Tarwi', 'Tatsoi', 'Tepary bean', 'Tinda', 'Tomatillo', 'Tomato', 'Urad bean', 'Velvet bean', 'Water spinach', 'Watercress', 'Welsh onion', 'West Indian gherkin', 'Wild leek', 'Winged bean', 'Winter melon', 'Winter purslane', 'Yardlong bean', 'Yau choy', 'Zucchini/Courgette'];
+				var options = [];
+
+				for(var i = 0; i < vegetables.length; ++i) {
+					options.push({
+						value: vegetables[i],
+						text: vegetables[i]
+					});
+				}
+
+				$('#fatfinger_example')
+					// FatFinger support will be in the demo once I get GitHub pages to work properly
+					//.swiftSelect('config', 'filter_function', fatfinger)
+					.swiftSelect('options', options);
+			</script>
+		</div>
+	</body>
 </html>
