@@ -145,7 +145,7 @@
 						'<input class="input" tabindex="-1" placeholder="Filter">',
 						'<div class="helpers">',
 							'<div class="all helper">Check all visible</div>',
-							'<div class="clear helper">Clear</div>',
+							'<div class="clear helper">Clear selected</div>',
 						'</div>',
 					'</div>',
 
