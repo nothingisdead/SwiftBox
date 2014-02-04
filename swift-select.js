@@ -5,7 +5,9 @@
 	// Browser Normalization
 	// =========================================================================
 
-	var document = window.document;
+	var document  = window.document;
+	var $window   = $(window);
+	var $document = $(window.document);
 
 	// Feature support detection
 	var test_template = document.createElement('template');
@@ -43,7 +45,7 @@
 			return Array.prototype.indexOf.call(array, value);
 		}
 
-		for(var i = 0; i < array; ++i) {
+		for(var i = 0; i < array.length; ++i) {
 			var test_value = array[i];
 			if(value === test_value) {
 				return i;
@@ -188,20 +190,19 @@
 
 	// Create the option list
 	var $options = $(document.createElement(options_tag_name));
-	$options.appendTo(document.documentElement);
 
 	// Create the shadow root for the option list
 	createShadowRoot.call($options, $options_dom);
 
 	// Store some references to important option list elements
-	var $option_container = findInShadowRoot.call($options, '.container');
-	var $option_input     = findInShadowRoot.call($options, '.input');
-	var $option_all       = findInShadowRoot.call($options, '.all');
-	var $option_clear     = findInShadowRoot.call($options, '.clear');
-	var $option_scroll    = findInShadowRoot.call($options, '.scroll');
-	var $option_sizer     = findInShadowRoot.call($options, '.sizer');
-	var $option_list      = findInShadowRoot.call($options, '.list');
-	var $option_elements  = findInShadowRoot.call($options, '.option');
+	var $option_container       = findInShadowRoot.call($options, '.container');
+	var $option_input           = findInShadowRoot.call($options, '.input');
+	var $option_all             = findInShadowRoot.call($options, '.all');
+	var $option_clear           = findInShadowRoot.call($options, '.clear');
+	var $option_scroll          = findInShadowRoot.call($options, '.scroll');
+	var $option_sizer           = findInShadowRoot.call($options, '.sizer');
+	var $option_list            = findInShadowRoot.call($options, '.list');
+	var $option_elements        = findInShadowRoot.call($options, '.option');
 
 	// =========================================================================
 	// Event Handlers
@@ -290,7 +291,7 @@
 	});
 
 	// Clicking a select toggles the option list
-	$(document).on('click', tag_name, function(e) {
+	$document.on('click', tag_name, function(e) {
 		// If this select is already displaying its options, close it
 		if($(this).is($active_select)) {
 			hideOptions();
@@ -303,7 +304,7 @@
 	});
 
 	// The down arrow shows the options
-	$(document).on('keydown', tag_name, function(e) {
+	$document.on('keydown', tag_name, function(e) {
 		if($(this).is($active_select)) {
 			return;
 		}
@@ -341,7 +342,7 @@
 	});
 
 	// Tab/Enter selects the highlighted option
-	$(document).on('keydown', function(e) {
+	$document.on('keydown', function(e) {
 		if(!$active_select) {
 			return;
 		}
@@ -373,7 +374,7 @@
 	});
 
 	// Escape hides the options
-	$(document).on('keydown', function(e) {
+	$document.on('keydown', function(e) {
 		var keyCode = e.which;
 
 		if($active_select && keyCode === 27) {
@@ -382,7 +383,7 @@
 	});
 
 	// Clicking anywhere in the document hides the options
-	$(document).on('mousedown', function(e) {
+	$document.on('mousedown', function(e) {
 		// Make sure the target of the close is not within the option list
 		if(!$(e.target).closest(tag_name + ', ' + options_tag_name).length) {
 			hideOptions();
@@ -390,6 +391,15 @@
 		else {
 			$option_input.focus();
 		}
+	});
+
+	// Scrolling or resizing the window repositions the option list
+	$window.on('scroll resize', function() {
+		if(!$active_select) {
+			return;
+		}
+
+		positionOptions.call($active_select);
 	});
 
 	// =========================================================================
@@ -670,47 +680,95 @@
 	function showOptions() {
 		var $this = $(this).first();
 
-		// Clear the filter input
-		$option_input.val('').data('last-text', '');
-
-		// Focus on the filter input. This needs to have a delay because in most cases,
-		// the browser will focus on something else after this is called due to default behaviors
-		setTimeout(function() {
-			$option_input.focus();
-		});
+		// For IE compatibility, ensure the option container is within the body
+		$options.appendTo(document.body || document.documentElement);
 
 		// Store this select as the currently active select
 		$active_select = $this;
+
+		// Clear the filter input
+		$option_input.val('').data('last-text', '');
 
 		// Add the focus class to the select for styling
 		getContainer.call($this).addClass('focus');
 
 		// Toggle the multiple class if the current select allows multiple values
-		// This is for styling multiple select options differently
 		$option_container.toggleClass('multiple', isMultiple.call($this));
 
-		// Get the position and dimensions of the select
-		var width  = $this.outerWidth();
-		var height = $this.outerHeight();
-		var offset = $this.offset();
-		offset.top += height + 2;
-		offset.left -= 1;
-
 		// Show the option list
-		$option_container
-			.removeClass('hidden')
-			.css({
-				top: offset.top + 'px',
-				left: offset.left + 'px',
-			});
+		$option_container.removeClass('hidden');
 
 		// Reset the filter
 		filterOptions.call(this, '');
+
+		// Position the option list
+		positionOptions.call(this);
 
 		// Highlight the currently selected option
 		var current_indexes = getSelectedIndexes.call(this);
 		var highlight_index = current_indexes[0] || 0;
 		highlightOption(highlight_index, true);
+
+		// Focus on the filter input
+		$option_input.focus();
+	}
+
+	function positionOptions() {
+		var $this = $(this).first();
+
+		// Get the position and dimensions of the select
+		var width    = $this.outerWidth();
+		var height   = $this.outerHeight();
+		var offset   = $this.offset();
+
+		// Correct for scrollbar position
+		offset.top  -= $window.scrollTop();
+		offset.left -= $window.scrollLeft();
+
+		var window_width  = $window.width();
+		var window_height = $window.height();
+		var top_edge      = offset.top + height + 2;
+		var left_edge     = offset.left - 1;
+		var right_edge    = left_edge + $option_container.outerWidth();
+		var bottom_edge   = top_edge + $option_container.outerHeight();
+
+		var top    = top_edge;
+		var right  = null;
+		var bottom = null;
+		var left   = left_edge;
+
+		// Prevent the list from going off the page
+		if(bottom_edge >= window_height) {
+			top    = null;
+			bottom = (window_height - offset.top) + 2;
+
+			$option_container.addClass('bottom');
+			$option_scroll.prependTo($option_container);
+		}
+		else {
+			$option_container.removeClass('bottom');
+			$option_scroll.appendTo($option_container);
+		}
+
+		if(right_edge >= window_width) {
+			right = 2;
+		}
+
+		if(left <= 0) {
+			left = 2;
+		}
+
+		// Position the option list
+		$option_container
+			.css({
+				top    : top === null ? 'auto' : top + 'px',
+				right  : right === null ? 'auto' : right + 'px',
+				bottom : bottom === null ? 'auto' : bottom + 'px',
+				left   : left === null ? 'auto' : left + 'px'
+			});
+
+		// Focus on the filter input
+		$option_input.focus();
 	}
 
 	/**
@@ -836,8 +894,8 @@
 	 * @param  {Boolean} top   Set to true to scroll to where the option is at the top of the list
 	 */
 	function highlightOption(index, top) {
-		var container_height = $option_scroll.height();
-		var option_height    = $option_elements.outerHeight();
+		var scroll_height = $option_scroll.height();
+		var option_height = $option_elements.outerHeight();
 
 		index = +index || 0;
 		index = Math.max(index, 0);
@@ -849,12 +907,12 @@
 		if(option_top < scroll_top) {
 			scroll_top = option_top;
 		}
-		else if(scroll_top + container_height <= option_top) {
+		else if(scroll_top + scroll_height <= option_top) {
 			if(top) {
 				scroll_top = option_top;
 			}
 			else {
-				scroll_top = option_top - container_height + option_height;
+				scroll_top = option_top - scroll_height + option_height;
 			}
 		}
 
@@ -930,7 +988,10 @@
 		var $this = $(this);
 
 		// Set the font CSS on the canvas
-		canvas_context.font = $this.css('font');
+		if(supports.canvas) {
+			var font = $this.css('font-size') + ' ' + $this.css('font-family');
+			canvas_context.font = font;
+		}
 
 		var max_width = 0;
 		var width;
@@ -955,17 +1016,17 @@
 			// Add the button's width
 			var button_width = findInShadowRoot.call($this, '.button').outerWidth();
 			max_width += button_width;
-	
+
 			// Add some extra pixels to account for padding
 			max_width += 10;
-			
+
 			return max_width + 'px';
 		}
 		// In older browsers, approximate using ems
 		else {
 			// Ensure a minimum width
-			max_width = Math.min(max_width, 8);
-			
+			max_width = Math.max(max_width, 8);
+
 			return (max_width * .75) + 'em';
 		}
 	}
