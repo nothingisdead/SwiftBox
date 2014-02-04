@@ -966,7 +966,7 @@
 		// In older browsers, approximate using ems
 		else {
 			// Ensure a minimum width
-			max_width = Math.min(max_width, 8);
+			max_width = Math.max(max_width, 8);
 			
 			return (max_width * .75) + 'em';
 		}
