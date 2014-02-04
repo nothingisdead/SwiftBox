@@ -930,7 +930,9 @@
 		var $this = $(this);
 
 		// Set the font CSS on the canvas
-		canvas_context.font = $this.css('font');
+		if(supports.canvas) {
+			canvas_context.font = $this.css('font');
+		}
 
 		var max_width = 0;
 		var width;
