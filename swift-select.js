@@ -1,3 +1,5 @@
+
+// @TODO: Add support for components when they become relevant
 (function($, window, undefined) {
 	'use strict';
 
@@ -14,7 +16,7 @@
 	var test_canvas   = document.createElement('canvas');
 
 	var supports = {
-		components   : false, //!!document.register,
+		components   : false, //!!document.register
 		templates    : !!test_template.content,
 		canvas       : !!test_canvas.getContext
 	};
@@ -303,21 +305,34 @@
 		e.preventDefault();
 	});
 
-	// The down arrow shows the options
-	$document.on('keydown', tag_name, function(e) {
+	// The down arrow or letter keys show the option list
+	$document.on('keydown keypress', tag_name, function(e) {
 		if($(this).is($active_select)) {
 			return;
 		}
 
-		var keyCode = e.which;
+		var which = e.which;
+		var show  = false;
 
-		if(keyCode === 40) {
+		if(e.type === 'keypress') {
+			show = which >= 32;
+		}
+		else {
+			show = which === 40;
+		}
+
+		if(show) {
 			showOptions.call(this);
 			e.preventDefault();
+
+			if(e.type === 'keypress') {
+				var character = String.fromCharCode(which);
+				$option_input.val(character);
+			}
 		}
 	});
 
-	// Arrow keys show and maneuver through the options
+	// Arrow keys maneuver through the option list
 	$option_input.on('keydown', function(e) {
 		if(!$active_select) {
 			return;
@@ -429,13 +444,6 @@
 			// Create the new element
 			var $new_element = $(document.createElement(tag_name));
 
-			// Add a hidden input so values are sent in normal form submissions
-			var $hidden_input = $('<input>')
-									.prop('type', 'hidden')
-									.prop('name', $this.prop('name'))
-									.addClass('hidden-input')
-									.appendTo($new_element);
-
 			// Append the select template to the new element
 			createShadowRoot.call($new_element, $input_dom);
 
@@ -453,6 +461,12 @@
 					$new_element.attr(attribute.name, attribute.value);
 				}
 			}
+
+			// Store the name property for use later within hidden inputs
+			$new_element.attr('data-swift-select-name', $this.prop('name'));
+
+			// Add a container for hidden inputs
+			var $hidden_input = $('<div>').addClass('hidden-input-container').appendTo($new_element);
 
 			// Replace the old element
 			$this.replaceWith($new_element);
@@ -1202,6 +1216,7 @@
 		}
 
 		return $(this).each(function() {
+			var $this           = $(this);
 			var current_indexes = getSelectedIndexes.call(this);
 			var options         = getOptionArray.call(this);
 			var new_indexes     = [];
@@ -1223,10 +1238,7 @@
 			new_indexes.sort();
 
 			// Set the new indexes
-			$(this).data('swift-select-indexes', new_indexes);
-
-			// Get the new value list
-			var values = getValues.call(this);
+			$this.data('swift-select-indexes', new_indexes);
 
 			var text = [];
 			for(var i = 0; i < new_indexes.length; ++i) {
@@ -1240,11 +1252,28 @@
 
 			setText.call(this, text.join(', '));
 
-			if(!isMultiple.call(this)) {
-				getHiddenInput.call(this).val(values[0]);
+			// Update the hidden inputs to contain the new values
+			var values = getValues.call(this);
+			var name   = $this.attr('data-swift-select-name');
+
+			// Clear the existing hidden inputs
+			var $hidden_input_container = getHiddenInputContainer.call(this);
+			$hidden_input_container.empty();
+
+			for(var i = 0; i < values.length; ++i) {
+				var value = values[i];
+
+				// Add a hidden input so values are sent in normal form submissions
+				var $hidden_input = $('<input>')
+										.prop('type', 'hidden')
+										.prop('name', name)
+										.addClass('hidden-input')
+										.val(value)
+										.appendTo($hidden_input_container);
 			}
-			else {
-				getHiddenInput.call(this).val(JSON.stringify(values));
+
+			if(!isMultiple.call(this)) {
+				getHiddenInputContainer.call(this).val(values[0]);
 			}
 
 			// Trigger a change if the indexes have changed
@@ -1312,8 +1341,8 @@
 	 * The hidden input is used for traditional form submission
 	 * @return {Object} A jQuery collection containing the element
 	 */
-	function getHiddenInput() {
-		return $(this).find('.hidden-input');
+	function getHiddenInputContainer() {
+		return $(this).find('.hidden-input-container');
 	}
 
 
@@ -1445,8 +1474,9 @@
 
 			var values = getValues.call(this);
 
+			// For single selects, convert the value array to a single value
 			if(!isMultiple.call(this)) {
-				return values[0] || "";
+				values = values[0] || "";
 			}
 
 			return values;
