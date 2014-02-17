@@ -308,7 +308,10 @@
 		else {
 			showOptions.call(this);
 		}
+	});
 
+	// Prevent default behavior when clicking on an anchor tag within the select
+	$document.on('click', tag_name + ' a', function(e) {
 		e.preventDefault();
 	});
 
