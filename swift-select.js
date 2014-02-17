@@ -228,8 +228,12 @@
 		}
 	});
 
-	// Click the check all button selects all options on multi-selects
+	// Click the check all button selects all visible options on multi-selects
 	$option_all.on('click', function() {
+		if(isDisabled.call($active_select)) {
+			return;
+		}
+
 		var selected_indexes = getSelectedIndexes.call($active_select);
 		var new_indexes      = [];
 		var index_map        = {};
@@ -258,6 +262,10 @@
 
 	// Clicking the clear button clears the select value
 	$option_clear.on('click', function() {
+		if(isDisabled.call($active_select)) {
+			return;
+		}
+
 		setSelectedIndexes.call($active_select, []);
 		$option_input.focus();
 		renderOptions();
@@ -276,7 +284,7 @@
 
 	// Clicking an option selects it
 	$option_list.on('mouseup', '.option', function(e) {
-		if(e.which !== 1) {
+		if(e.which !== 1 || isDisabled.call($active_select)) {
 			return;
 		}
 
@@ -294,8 +302,7 @@
 
 	// Clicking a select toggles the option list
 	$document.on('click', tag_name, function(e) {
-		// If this select is already displaying its options, close it
-		if($(this).is($active_select)) {
+		if($(this).is($active_select) || isDisabled.call(this)) {
 			hideOptions();
 		}
 		else {
@@ -305,9 +312,9 @@
 		e.preventDefault();
 	});
 
-	// The down arrow or letter keys show the option list
+	// Pressing down arrow or letter keys shows the option list
 	$document.on('keydown keypress', tag_name, function(e) {
-		if($(this).is($active_select)) {
+		if($(this).is($active_select) || isDisabled.call(this)) {
 			return;
 		}
 
@@ -550,7 +557,15 @@
 	 * @return {Boolean} Returns true if the select is a multi-select
 	 */
 	function isMultiple() {
-		return $(this).attr('multiple') !== undefined
+		return $(this).attr('multiple') !== undefined;
+	}
+
+	/**
+	 * Determines if a select is disabled
+	 * @return {Boolean} Returns true if the select is disabled
+	 */
+	function isDisabled() {
+		return $(this).attr('disabled') !== undefined;
 	}
 
 	// =========================================================================

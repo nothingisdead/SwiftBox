@@ -21,9 +21,9 @@ swift-select {
 	min-width: 30px;
 	width: 120px;
 	height: 1.55em;
-	background: #FFF;
 	font-family: arial;
 	font-size: .9em;
+	cursor: pointer;
 }
 
 :host(swift-select:host) {
@@ -32,9 +32,17 @@ swift-select {
 	min-width: 30px;
 	width: 120px;
 	height: 1.55em;
-	background: #FFF;
 	font-family: arial;
 	font-size: .9em;
+	cursor: pointer;
+}
+
+swift-select[disabled] {
+	cursor: default;
+}
+
+:host(swift-select[disabled]:host) {
+	cursor: default;
 }
 
 .swift-select {
@@ -50,6 +58,7 @@ swift-select {
 	white-space: nowrap;
 	text-decoration: none;
 	color: #555;
+	cursor: inherit;
 }
 
 .swift-select .container:focus,
@@ -69,6 +78,7 @@ swift-select {
 .swift-select .text {
 	padding: 0 .2em;
 	border-right: 0;
+	background-color: #FFF;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
@@ -81,11 +91,28 @@ swift-select {
 	text-align: center;
 	text-shadow: 1px 1px rgba(255, 255, 255, .1);
 	color: rgba(0, 0, 0, .5);
-	cursor: pointer;
 }
 
 .swift-select .button:hover {
 	background-color: #6AE;
+}
+
+swift-select[disabled] .swift-select .text {
+	background-color: #DDD;
+	color: #888;
+}
+
+:host(swift-select[disabled]:host) .swift-select .text {
+	background-color: #DDD;
+	color: #888;
+}
+
+swift-select[disabled] .swift-select .button {
+	background-color: #AAA;
+}
+
+:host(swift-select[disabled]:host) .swift-select .button {
+	background-color: #AAA;
 }
 
 /* =============================================================================
