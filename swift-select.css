@@ -99,12 +99,12 @@ swift-select[disabled] {
 
 swift-select[disabled] .swift-select .text {
 	background-color: #DDD;
-	color: #888;
+	color: #777;
 }
 
 :host(swift-select[disabled]:host) .swift-select .text {
 	background-color: #DDD;
-	color: #888;
+	color: #777;
 }
 
 swift-select[disabled] .swift-select .button {
