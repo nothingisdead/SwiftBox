@@ -1552,4 +1552,39 @@
 
 		throw new Error('Invalid SwiftSelect method: ' + method);
 	};
+
+	// Extend the :input pseudo-selector
+	var jquery_input_selector = $.expr[':'].input;
+	$.expr[':'].input = function(element) {
+		var $element = $(element);
+
+		// Return true if the element matches the original selector
+		if(jquery_input_selector(element)) {
+			return !$element.closest(tag_name).length
+		}
+
+		// Otherwise, determine if the element is a select
+		return $element.is(tag_name);
+	};
+
+	// Extend the $.val method
+	var jquery_val = $.fn.val;
+	$.fn.val = function(value) {
+		// If no value is passed in, return the value of the first element
+		if(value === undefined) {
+			var $first = this.first();
+
+			if($first.is(tag_name)) {
+				return $first.swiftSelect('value');
+			}
+
+			return jquery_val.call(this);
+		}
+
+		// Otherwise, set the value on all elements
+		jquery_val.call(this.not(tag_name), value);
+		this.filter(tag_name).swiftSelect('value', value);
+
+		return this;
+	};
 }(jQuery, window));
