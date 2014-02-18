@@ -1,5 +1,14 @@
 
-// @TODO: Add support for components when they become relevant
+/*!
+ * SwiftSelect Combobox
+ * https://github.com/Knotix/SwiftSelect/
+ *
+ * Copyright 2014 Samuel Hodge
+ * Released under the GPL license
+ * http://www.gnu.org/licenses/gpl.html
+ *
+ * @TODO: Add support for components when they become relevant
+ */
 (function($, window, undefined) {
 	'use strict';
 
