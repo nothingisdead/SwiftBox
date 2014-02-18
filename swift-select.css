@@ -87,7 +87,7 @@ swift-select[disabled] {
 	width: 1.5em;
 	border-color: rgba(0, 0, 0, .2);
 	background-color: #59D;
-	box-shadow: 1px 1px 1px rgba(255, 255, 255, .3) inset;
+	box-shadow: 0 0 1px 1px rgba(255, 255, 255, .3) inset;
 	text-align: center;
 	text-shadow: 1px 1px rgba(255, 255, 255, .1);
 	color: rgba(0, 0, 0, .5);
