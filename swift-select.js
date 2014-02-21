@@ -92,7 +92,7 @@
 	var $active_select = null;
 
 	// Stores the current list of filtered options
-	var filtered_options = [];
+	var filtered_option_array = [];
 
 	// Stores the currently highlighted option's index
 	var highlighted_option_index = null;
@@ -253,8 +253,8 @@
 			index_map[index] = true;
 		}
 
-		for(var i = 0; i < filtered_options.length; ++i) {
-			var filtered_option = filtered_options[i];
+		for(var i = 0; i < filtered_option_array.length; ++i) {
+			var filtered_option = filtered_option_array[i];
 			var index           = filtered_option.index;
 
 			index_map[index] = true;
@@ -491,8 +491,8 @@
 			$this.replaceWith($new_element);
 
 			// Extract existing options
-			var options = extractOptionArray.call(this);
-			setOptionArray.call($new_element, options);
+			var option_array = extractOptionArrayFromSelect.call(this);
+			setOptionArray.call($new_element, option_array);
 
 			// Set the selected index
 			setSelectedIndexes.call($new_element, $(this).prop('selectedIndex'));
@@ -544,7 +544,7 @@
 	 * @param {String} value  The value to set
 	 */
 	function setConfigOption(option, value) {
-		return $(this).each(function() {
+		$(this).each(function() {
 			var $this          = $(this);
 			var config         = getConfigObject.call($this);
 			var new_config     = $.extend({}, config);
@@ -586,24 +586,22 @@
 
 	/**
 	 * Sets the options on a select
-	 * @param {Array} option_array An array of objects containing a "value" and "text" property
+	 * @param {Array}   option_array      An array of objects containing a "value" and "text" property
+	 * @param {Boolean} remove_duplicates Set to true to remove duplicate values
 	 */
-	function setOptionArray(option_array) {
+	function setOptionArray(option_array, remove_duplicates) {
 		var $this = $(this);
 
 		// Normalize the option array
-		option_array = normalizeOptionArray(option_array);
+		var normalized_option_array = normalizeOptionArray(option_array, remove_duplicates);
 
 		// Check if the option array already exists
-		var index = findOptionArray(option_array);
+		var index = findOptionArray(normalized_option_array.array);
 
-		// Add the option_array if it does not exist
+		// Add the option array if it does not exist
 		if(index === -1) {
-			var index = option_arrays.push(option_array) - 1;
-
-			// Generate the map between values and indexes
-			var option_value_map = generateOptionValueMap(option_array);
-			option_array_value_maps.push(option_value_map);
+			index = option_arrays.push(normalized_option_array.array) - 1;
+			option_array_value_maps.push(normalized_option_array.map);
 		}
 
 		// Store a reference to the option array
@@ -626,38 +624,52 @@
 		// Set the width based on the options
 		var option_width = calculateWidth.call($this, option_array);
 		$(this).css('width', option_width);
-
-		return $this;
 	}
 
 	/**
-	 * Gets the option array on a select
-	 * @return {Array} The option array
+	 * Add options to a select
+	 * @param {Array}   option_array      An array of objects containing a "value" and "text" property
+	 * @param {Boolean} remove_duplicates Set to true to remove duplicate values
 	 */
-	function getOptionArray() {
-		var index = $(this).attr('data-swift-select-options');
-		return option_arrays[index] || [];
+	function addOptionArray(option_array, remove_duplicates) {
+		var normalized_option_array = normalizeOptionArray(option_array);
+
+		$(this).each(function() {
+			var existing_option_array = getOptionArray.call(this);
+			var new_option_array      = existing_option_array.concat(normalized_option_array.array);
+
+			setOptionArray.call(this, new_option_array, remove_duplicates);
+		});
 	}
 
 	/**
-	 * Extracts options from a traditional <select>
-	 * @return {Array} An array of options
+	 * Removes a list of values from a select's options
+	 * @param  {[type]} value_array An array of values to remove
 	 */
-	function extractOptionArray() {
-		var $this = $(this);
-		var options = $this.prop('options');
-
-		var result = [];
-		for(var i = 0; i < options.length; ++i) {
-			var option = options[i];
-
-			result.push({
-				value: option.value,
-				text: option.text
-			});
+	function removeOptionArray(value_array) {
+		if(!(value_array instanceof Array)) {
+			throw new Error('Invalid value array: ' + value_array);
 		}
 
-		return result;
+		// Convert the values to strings
+		for(var i = 0; i < value_array.length; ++i) {
+			value_array[i] = value_array[i] + '';
+		}
+
+		$(this).each(function() {
+			var existing_option_array = getOptionArray.call(this);
+			var new_option_array      = [];
+
+			for(var i = 0; i < existing_option_array.length; ++i) {
+				var option = existing_option_array[i];
+
+				if(value_array.indexOf(option.value) === -1) {
+					new_option_array.push(option);
+				}
+			}
+
+			setOptionArray.call(this, new_option_array);
+		});
 	}
 
 	/**
@@ -665,14 +677,15 @@
 	 * @param  {Array} option_array The array to normalize
 	 * @return {Array}              The normalized array
 	 */
-	function normalizeOptionArray(option_array) {
+	function normalizeOptionArray(option_array, remove_duplicates) {
 		if(typeof option_array !== 'object') {
 			throw new Error('Invalid option_array: ' + option_array);
 		}
 
-		var normalized_array = [];
-		var is_array         = option_array instanceof Array;
-		var index            = 0;
+		var array    = [];
+		var map      = {};
+		var is_array = option_array instanceof Array;
+		var index    = 0;
 
 		for(var key in option_array) {
 			if(!option_array.hasOwnProperty(key)) {
@@ -704,15 +717,59 @@
 			value = value + '';
 			text  = $.trim(text.replace(tag_regexp + '', ''));
 
-			normalized_array.push({
-				index          : index++,
+			var new_option = {
+				index          : index,
 				value          : value,
 				text           : text,
 				highlight_text : text
+			};
+
+			var existing_index = map[value];
+
+			if(remove_duplicates && existing_index !== undefined) {
+				array[existing_index] = new_option;
+			}
+			else {
+				array.push(new_option);
+				map[value] = index;
+				++index;
+			}
+		}
+
+		return {
+			array : array,
+			map   : map
+		};
+	}
+
+	/**
+	 * Extracts options from a traditional <select>
+	 * @return {Array} An array of options
+	 */
+	function extractOptionArrayFromSelect() {
+		var $this           = $(this);
+		var option_elements = $this.prop('options');
+
+		var result = [];
+		for(var i = 0; i < option_elements.length; ++i) {
+			var option = option_elements[i];
+
+			result.push({
+				value: option.value,
+				text: option.text
 			});
 		}
 
-		return normalized_array;
+		return result;
+	}
+
+	/**
+	 * Gets the option array on a select
+	 * @return {Array} The option array
+	 */
+	function getOptionArray() {
+		var index = $(this).attr('data-swift-select-options');
+		return option_arrays[index] || [];
 	}
 
 	/**
@@ -778,6 +835,10 @@
 		var bottom = null;
 		var left   = left_edge;
 
+		// Save the current scroll position within the options
+		var scroll_top  = $option_scroll.scrollTop();
+		var scroll_left = $option_scroll.scrollLeft();
+
 		// Prevent the list from going off the page
 		if(bottom_edge >= window_height) {
 			top    = null;
@@ -808,8 +869,15 @@
 				left   : left === null ? 'auto' : left + 'px'
 			});
 
+		// Restore the scroll position
+		$option_scroll.scrollTop(scroll_top);
+		$option_scroll.scrollLeft(scroll_left);
+
 		// Focus on the filter input
 		$option_input.focus();
+
+		// Render the options
+		renderOptions();
 	}
 
 	/**
@@ -818,20 +886,20 @@
 	 */
 	function filterOptions(filter_text) {
 		// Get the options for the active select
-		var options = getOptionArray.call($active_select);
+		var option_array = getOptionArray.call($active_select);
 
 		// Filter the options
-		filtered_options = filterOptionArray.call(this, options, filter_text);
+		filtered_option_array = filterOptionArray.call(this, option_array, filter_text);
 
 		// Show the empty message if no options match the filter
-		$option_scroll.toggleClass('empty', !filtered_options.length);
+		$option_scroll.toggleClass('empty', !filtered_option_array.length);
 
 		// Get some dimensions
 		var option_height        = $option_elements.outerHeight();
 		var container_max_height = option_height * max_visible_options;
-		var sizer_width          = calculateWidth.call($active_select, options);
+		var sizer_width          = calculateWidth.call($active_select, option_array);
 		var sizer_min_width      = $active_select.outerWidth();
-		var sizer_height         = Math.min(option_height * filtered_options.length, height_restriction);
+		var sizer_height         = Math.min(option_height * filtered_option_array.length, height_restriction);
 
 		$option_scroll
 			.scrollTop(0)
@@ -860,7 +928,7 @@
 		$option_elements.addClass('hidden');
 
 		// If there are no options, we're done
-		if(!filtered_options.length) {
+		if(!filtered_option_array.length) {
 			return;
 		}
 
@@ -884,7 +952,7 @@
 
 		// Calculate which options to show based on the scroll position
 		var offset = Math.floor(scroll_top / option_height);
-		var limit  = Math.min(max_visible_options + 1, filtered_options.length - offset);
+		var limit  = Math.min(max_visible_options + 1, filtered_option_array.length - offset);
 
 		// Detach the option list for performance
 		$option_list
@@ -896,7 +964,7 @@
 		// For each visible option
 		for(var i = 0; i < limit; ++i) {
 			var filtered_index = i + offset;
-			var option         = filtered_options[filtered_index];
+			var option         = filtered_option_array[filtered_index];
 			var option_index   = option.index;
 
 			$option_elements.eq(i)
@@ -940,7 +1008,7 @@
 
 		index = +index || 0;
 		index = Math.max(index, 0);
-		index = Math.min(index, filtered_options.length -1);
+		index = Math.min(index, filtered_option_array.length -1);
 
 		var scroll_top = $option_scroll.scrollTop();
 		var option_top = index * option_height;
@@ -965,7 +1033,7 @@
 	 * Selects the currently highlighted option and assigns its value to the currently active select
 	 */
 	function selectHighlightedOption() {
-		var option = filtered_options[highlighted_option_index];
+		var option = filtered_option_array[highlighted_option_index];
 		if(option === undefined) {
 			return;
 		}
@@ -994,22 +1062,6 @@
 	}
 
 	/**
-	 * Generates a map between values and indexes
-	 * @param  {Array} option_array The array of options
-	 * @return {Object}             The value map
-	 */
-	function generateOptionValueMap(option_array) {
-		var map = {};
-
-		for(var i = 0; i < option_array.length; ++i) {
-			var option = option_array[i];
-			map[option.value] = i;
-		}
-
-		return map;
-	}
-
-	/**
 	 * Gets the option value map for a select
 	 * @return {Object} The value map
 	 */
@@ -1022,10 +1074,10 @@
 	 * Calculates the width of the select based on widest option.
 	 * In older browsers that don't support canvas, the width is
 	 * approximated, possibly failing miserably.
-	 * @param  {Array}  options_array The array of options
-	 * @return {Number}               The width of the widest option
+	 * @param  {Array}  option_array The array of options
+	 * @return {Number}              The width of the widest option
 	 */
-	function calculateWidth(options_array) {
+	function calculateWidth(option_array) {
 		var $this = $(this);
 
 		// Set the font CSS on the canvas
@@ -1037,8 +1089,8 @@
 		var max_width = 0;
 		var width;
 
-		for(var i = 0; i < options_array.length; ++i) {
-			var option = options_array[i];
+		for(var i = 0; i < option_array.length; ++i) {
+			var option = option_array[i];
 
 			// In modern browsers, we can accurately measure the text using the canvas
 			if(supports.canvas) {
@@ -1109,7 +1161,7 @@
 	 * @return {Array}               The filtered option array
 	 */
 	function filterOptionArray(option_array, filter_text) {
-		var filtered_options = option_array;
+		var filtered_option_array = option_array;
 
 		if(filter_text === undefined || filter_text === null) {
 			filter_text = '';
@@ -1124,7 +1176,7 @@
 				throw new Error('Invalid filter function: ' + filter_function);
 			}
 
-			filtered_options = filter_function(filter_text, option_array);
+			filtered_option_array = filter_function(filter_text, option_array);
 		}
 		// Otherwise, reset the filtered options to the full option array
 		else {
@@ -1134,7 +1186,7 @@
 			}
 		}
 
-		return filtered_options;
+		return filtered_option_array;
 	}
 
 	/**
@@ -1177,12 +1229,12 @@
 	 */
 	function getValues() {
 		var current_indexes = getSelectedIndexes.call(this);
-		var options         = getOptionArray.call(this);
+		var option_array    = getOptionArray.call(this);
 		var values          = [];
 
 		for(var i = 0; i < current_indexes.length; ++i) {
 			var index  = current_indexes[i];
-			var option = options[index];
+			var option = option_array[index];
 
 			if(option) {
 				values.push(option.value);
@@ -1202,7 +1254,7 @@
 			values = [values];
 		}
 
-		return $(this).each(function() {
+		$(this).each(function() {
 			var option_value_map = getOptionValueMap.call(this);
 			var indexes          = [];
 
@@ -1210,7 +1262,7 @@
 				var value = values[i];
 				var index = option_value_map[value];
 
-				if(index) {
+				if(index !== undefined) {
 					indexes.push(index);
 				}
 			}
@@ -1242,10 +1294,10 @@
 			indexes = [indexes];
 		}
 
-		return $(this).each(function() {
+		$(this).each(function() {
 			var $this           = $(this);
 			var current_indexes = getSelectedIndexes.call(this);
-			var options         = getOptionArray.call(this);
+			var option_array    = getOptionArray.call(this);
 			var new_indexes     = [];
 
 			for(var i = 0; i < indexes.length; ++i) {
@@ -1254,7 +1306,7 @@
 					continue;
 				}
 
-				var option = options[index];
+				var option = option_array[index];
 				var valid  = !!option;
 
 				if(valid) {
@@ -1270,7 +1322,7 @@
 			var text = [];
 			for(var i = 0; i < new_indexes.length; ++i) {
 				var index  = new_indexes[i];
-				var option = options[index];
+				var option = option_array[index];
 
 				if(option) {
 					text.push(option.text);
@@ -1420,7 +1472,8 @@
 			return $(roots);
 		}
 
-		return $this.find('.swift-select-shadow-root');
+		var shadow_root = $this.find('.swift-select-shadow-root');
+		return shadow_root;
 	}
 
 	/**
@@ -1451,7 +1504,7 @@
 
 		config: function(option, value) {
 			if(!option) {
-				return;
+				return this;
 			}
 
 			// If option is an object, we must be setting multiple config options at once
@@ -1467,36 +1520,65 @@
 			}
 			// If only one argument was passed, we must be getting a config option
 			else if(arguments.length === 1) {
-				return getConfigOption.call(this, option);
+				getConfigOption.call(this, option);
+			}
+			// If we've made it this far, we must be setting a config option
+			else {
+				setConfigOption.call(this, option, value);
 			}
 
-			// If we've made it this far, we must be setting a config option
-			return setConfigOption.call(this, option, value);
+			return this;
 		},
 
 		options: function() {
 			if(arguments.length) {
-				return setOptionArray.apply(this, arguments);
+				setOptionArray.apply(this, arguments);
+				return this;
 			}
 
-			return $.extend(true, [], getOptionArray.call(this));
+			var options = $.extend(true, [], getOptionArray.call(this));
+			return options;
+		},
+
+		setOptions: function() {
+			setOptionArray.apply(this, arguments);
+			return this;
+		},
+
+		addOptions: function() {
+			addOptionArray.apply(this, arguments);
+			return this;
+		},
+
+		removeOptions: function() {
+			removeOptionArray.apply(this, arguments);
+			return this;
+		},
+
+		getOptions: function() {
+			var options = $.extend(true, [], getOptionArray.call(this));
+			return options;
 		},
 
 		showOptions: function() {
-			showOptions.call(this);
+			showOptions.apply(this);
+			return this;
 		},
 
-		filterOptions: function(filter_text) {
-			filterOptions.call(this, filter_text);
+		filterOptions: function() {
+			filterOptions.apply(this, arguments);
+			return this;
 		},
 
 		hideOptions: function() {
 			hideOptions();
+			return this;
 		},
 
 		value: function() {
 			if(arguments.length) {
-				return setValues.apply(this, arguments);
+				setValues.apply(this, arguments);
+				return this;
 			}
 
 			var values = getValues.call(this);
@@ -1509,9 +1591,26 @@
 			return values;
 		},
 
+		setValue: function(value) {
+			setValues.apply(this, value);
+			return this;
+		},
+
+		getValue: function() {
+			var values = getValues.call(this);
+
+			// For single selects, convert the value array to a single value
+			if(!isMultiple.call(this)) {
+				values = values[0] || "";
+			}
+
+			return values;
+		},
+
 		selectedIndex: function() {
 			if(arguments.length) {
-				return setSelectedIndexes.apply(this, arguments);
+				setSelectedIndexes.apply(this, arguments);
+				return this;
 			}
 
 			var current_indexes = getSelectedIndexes.call(this);
@@ -1525,18 +1624,21 @@
 
 		text: function() {
 			if(arguments.length) {
-				return setText.apply(this, arguments);
+				setText.apply(this, arguments);
+				return this;
 			}
 
 			return getText.call(this);
 		},
 
 		focus: function() {
-			return focus.call(this);
+			focus.call(this);
+			return this;
 		},
 
 		blur: function() {
-			return blur.call(this);
+			blur.call(this);
+			return this;
 		}
 	};
 
