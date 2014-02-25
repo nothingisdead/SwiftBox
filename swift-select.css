@@ -168,7 +168,8 @@ swift-select-options {
 }
 
 .swift-select-options .input {
-	width: 100%;
+	min-width: 100%;
+	width: 0;
 	padding: 2px 3px;
 	border: 1px solid #AAA;
 	box-shadow: 2px 2px 2px rgba(0, 0, 0, .1) inset;
@@ -213,8 +214,6 @@ swift-select-options {
 }
 
 .swift-select-options .sizer {
-	margin-right: 30px;
-	overflow: hidden;
 }
 
 .swift-select-options .list {

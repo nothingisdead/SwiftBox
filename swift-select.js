@@ -162,18 +162,17 @@
 
 					'<div class="scroll">',
 						'<div class="sizer">',
-							'<div class="list">',
-								Array(max_visible_options + 2).join(
-									[
-										'<div class="option">',
-											'<span class="state"></span>',
-											'<span class="text"></span>',
-										'</div>'
-									].join('')
-								),
-							'</div>',
 						'</div>',
-
+						'<div class="list">',
+							Array(max_visible_options + 2).join(
+								[
+									'<div class="option">',
+										'<span class="state"></span>',
+										'<span class="text"></span>',
+									'</div>'
+								].join('')
+							),
+						'</div>',
 						'<div class="none">No Options Found</div>',
 					'</div>',
 				'</div>',
@@ -905,13 +904,13 @@
 			.scrollTop(0)
 			.scrollLeft(0)
 			.css({
+				minWidth : sizer_min_width + 'px',
+				width    : sizer_width,
 				maxHeight: container_max_height + 'px'
 			});
 
 		$option_sizer.css({
-			minWidth : sizer_min_width + 'px',
-			width    : sizer_width,
-			height   : sizer_height + 'px'
+			height: sizer_height + 'px'
 		});
 
 		// Highlight the first match
@@ -977,7 +976,7 @@
 					.html(option.highlight_text);
 		}
 
-		$option_sizer.append($option_list);
+		$option_scroll.append($option_list);
 	}
 
 	/**
