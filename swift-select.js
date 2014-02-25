@@ -161,8 +161,7 @@
 					'</div>',
 
 					'<div class="scroll">',
-						'<div class="sizer">',
-						'</div>',
+						'<div class="sizer"></div>',
 						'<div class="list">',
 							Array(max_visible_options + 2).join(
 								[
