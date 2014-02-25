@@ -204,14 +204,14 @@
 	createShadowRoot.call($options, $options_dom);
 
 	// Store some references to important option list elements
-	var $option_container       = findInShadowRoot.call($options, '.container');
-	var $option_input           = findInShadowRoot.call($options, '.input');
-	var $option_all             = findInShadowRoot.call($options, '.all');
-	var $option_clear           = findInShadowRoot.call($options, '.clear');
-	var $option_scroll          = findInShadowRoot.call($options, '.scroll');
-	var $option_sizer           = findInShadowRoot.call($options, '.sizer');
-	var $option_list            = findInShadowRoot.call($options, '.list');
-	var $option_elements        = findInShadowRoot.call($options, '.option');
+	var $option_container = findInShadowRoot.call($options, '.container');
+	var $option_input     = findInShadowRoot.call($options, '.input');
+	var $option_all       = findInShadowRoot.call($options, '.all');
+	var $option_clear     = findInShadowRoot.call($options, '.clear');
+	var $option_scroll    = findInShadowRoot.call($options, '.scroll');
+	var $option_sizer     = findInShadowRoot.call($options, '.sizer');
+	var $option_list      = findInShadowRoot.call($options, '.list');
+	var $option_elements  = findInShadowRoot.call($options, '.option');
 
 	// =========================================================================
 	// Event Handlers
