@@ -1,7 +1,6 @@
-
 /*!
- * SwiftSelect Combobox
- * https://github.com/Knotix/SwiftSelect/
+ * SwiftBox Combobox
+ * https://github.com/Knotix/SwiftBox/
  *
  * Copyright 2014 Samuel Hodge
  * Released under the GPL license
@@ -37,7 +36,7 @@
 	var canvas_context = supports.canvas ? test_canvas.getContext('2d') : null;
 
 	// Get the CSS url
-	var style_href = window.swift_select_style_href;
+	var style_href = window.swift_box_style_href;
 	if(!style_href) {
 		var script_src = $('script').last().prop('src');
 		style_href = script_src.slice(0, -3) + '.css';
@@ -70,15 +69,6 @@
 	// Variables
 	// =========================================================================
 
-	// The name of the select tag
-	var tag_name = 'swift-select';
-
-	// The name of the select options tag
-	var options_tag_name = 'swift-select-options';
-
-	// The name of the template class
-	var template_class_name = 'swift-select-template';
-
 	// Stores the option arrays
 	var option_arrays = [];
 
@@ -100,11 +90,6 @@
 	// The maximum number of visible options
 	var max_visible_options = 15;
 
-	// Element height restriction
-	// Browsers have a hard limit on the maximum height of any one element. This
-	// serves as a lowest common denominator
-	var height_restriction = 1000000;
-
 	// RegExp used to escape RegExp special characters
 	var escape_regex = /([-[\]{}()*+?.,\\^$|#\s])/g;
 
@@ -117,18 +102,18 @@
 
 	// Register the tags as components if supported
 	if(supports.components) {
-		document.register(tag_name, {
+		document.register('swift-box', {
 			prototype: Object.create(HTMLDivElement.prototype)
 		});
 
-		document.register(options_tag_name, {
+		document.register('swift-box-options', {
 			prototype: Object.create(HTMLDivElement.prototype)
 		});
 	}
 	// Otherwise, create the tags for styling compatibilty
 	else {
-		document.createElement(tag_name);
-		document.createElement(options_tag_name);
+		document.createElement('swift-box');
+		document.createElement('swift-box-options');
 	}
 
 	// =========================================================================
@@ -136,9 +121,9 @@
 	// =========================================================================
 
 	var input_html = [
-		'<' + template_element + ' class="' + template_class_name + '">',
+		'<' + template_element + ' class="swift-box-template">',
 			component_style_import,
-			'<div class="swift-select">',
+			'<div class="swift-box">',
 				'<a href="#" class="container">',
 					'<div class="text"></div>',
 					'<div class="button">▼</div>',
@@ -148,9 +133,9 @@
 	].join('');
 
 	var options_html = [
-		'<' + template_element + ' class="' + template_class_name + '">',
+		'<' + template_element + ' class="swift-box-template">',
 			component_style_import,
-			'<div class="swift-select-options">',
+			'<div class="swift-box-options">',
 				'<div class="container hidden">',
 					'<div class="input-container">',
 						'<input class="input" tabindex="-1" placeholder="Filter">',
@@ -198,7 +183,7 @@
 	// =========================================================================
 
 	// Create the option list
-	var $options = $(document.createElement(options_tag_name));
+	var $options = $(document.createElement('swift-box-options'));
 
 	// Create the shadow root for the option list
 	createShadowRoot.call($options, $options_dom);
@@ -308,7 +293,7 @@
 	});
 
 	// Clicking a select toggles the option list
-	$document.on('click', tag_name, function(e) {
+	$document.on('click', 'swift-box', function(e) {
 		if($(this).is($active_select) || isDisabled.call(this)) {
 			hideOptions();
 		}
@@ -318,12 +303,12 @@
 	});
 
 	// Prevent default behavior when clicking on an anchor tag within the select
-	$document.on('click', tag_name + ' a', function(e) {
+	$document.on('click', 'swift-box a', function(e) {
 		e.preventDefault();
 	});
 
 	// Pressing down arrow or letter keys shows the option list
-	$document.on('keydown keypress', tag_name, function(e) {
+	$document.on('keydown keypress', 'swift-box', function(e) {
 		if($(this).is($active_select) || isDisabled.call(this)) {
 			return;
 		}
@@ -417,7 +402,7 @@
 	// Clicking anywhere in the document hides the options
 	$document.on('mousedown', function(e) {
 		// Make sure the target of the close is not within the option list
-		if(!$(e.target).closest(tag_name + ', ' + options_tag_name).length) {
+		if(!$(e.target).closest('swift-box, swift-box-options').length) {
 			hideOptions();
 		}
 		else {
@@ -449,7 +434,7 @@
 			var tag = $this.prop('tagName').toLowerCase();
 
 			// If the element is already initialized, we're done
-			if(tag === tag_name) {
+			if(tag === 'swift-box') {
 				return this;
 			}
 
@@ -459,7 +444,7 @@
 			}
 
 			// Create the new element
-			var $new_element = $(document.createElement(tag_name));
+			var $new_element = $(document.createElement('swift-box'));
 
 			// Append the select template to the new element
 			createShadowRoot.call($new_element, $input_dom);
@@ -480,7 +465,7 @@
 			}
 
 			// Store the name property for use later within hidden inputs
-			$new_element.attr('data-swift-select-name', $this.prop('name'));
+			$new_element.attr('data-swift-box-name', $this.prop('name'));
 
 			// Add a container for hidden inputs
 			var $hidden_input = $('<div>').addClass('hidden-input-container').appendTo($new_element);
@@ -499,7 +484,7 @@
 		});
 
 		// Set the configuration options on all elements passed in
-		var $configure_elements = config ? $elements : $elements.not('[data-swift-select-config]');
+		var $configure_elements = config ? $elements : $elements.not('[data-swift-box-config]');
 		if($configure_elements.length) {
 			config = $.extend({}, defaults, config);
 			setConfigObject.call($configure_elements, config);
@@ -523,7 +508,7 @@
 	function setConfigObject(config) {
 		var index = config_objects.push(config) - 1;
 
-		return $(this).attr('data-swift-select-config', index);
+		return $(this).attr('data-swift-box-config', index);
 	}
 
 	/**
@@ -531,7 +516,7 @@
 	 * @param {Object} config The configuration object
 	 */
 	function getConfigObject() {
-		var index = $(this).attr('data-swift-select-config');
+		var index = $(this).attr('data-swift-box-config');
 
 		return config_objects[index];
 	}
@@ -603,7 +588,7 @@
 		}
 
 		// Store a reference to the option array
-		$this.attr('data-swift-select-options', index);
+		$this.attr('data-swift-box-options', index);
 
 		$this.each(function() {
 			// Get any existing values
@@ -766,7 +751,7 @@
 	 * @return {Array} The option array
 	 */
 	function getOptionArray() {
-		var index = $(this).attr('data-swift-select-options');
+		var index = $(this).attr('data-swift-box-options');
 		return option_arrays[index] || [];
 	}
 
@@ -897,7 +882,7 @@
 		var container_max_height = option_height * max_visible_options;
 		var sizer_width          = calculateWidth.call($active_select, option_array);
 		var sizer_min_width      = $active_select.outerWidth();
-		var sizer_height         = Math.min(option_height * filtered_option_array.length, height_restriction);
+		var sizer_height         = option_height * filtered_option_array.length;
 
 		$option_scroll
 			.scrollTop(0)
@@ -1064,7 +1049,7 @@
 	 * @return {Object} The value map
 	 */
 	function getOptionValueMap() {
-		var index = $(this).attr('data-swift-select-options');
+		var index = $(this).attr('data-swift-box-options');
 		return option_array_value_maps[index] || {};
 	}
 
@@ -1274,7 +1259,7 @@
 	 * @return {Array} An array of selected indexes
 	 */
 	function getSelectedIndexes() {
-		var indexes = $(this).data('swift-select-indexes') || [];
+		var indexes = $(this).data('swift-box-indexes') || [];
 
 		return indexes.slice(0);
 	}
@@ -1315,7 +1300,7 @@
 			new_indexes.sort();
 
 			// Set the new indexes
-			$this.data('swift-select-indexes', new_indexes);
+			$this.data('swift-box-indexes', new_indexes);
 
 			var text = [];
 			for(var i = 0; i < new_indexes.length; ++i) {
@@ -1331,7 +1316,7 @@
 
 			// Update the hidden inputs to contain the new values
 			var values = getValues.call(this);
-			var name   = $this.attr('data-swift-select-name');
+			var name   = $this.attr('data-swift-box-name');
 
 			// Clear the existing hidden inputs
 			var $hidden_input_container = getHiddenInputContainer.call(this);
@@ -1357,7 +1342,7 @@
 			if(trigger_change) {
 				for(var i = 0; i < new_indexes.length; ++i) {
 					if(new_indexes[i] !== current_indexes[i]) {
-						$(this).trigger('change').trigger('swift-select-change');
+						$(this).trigger('change').trigger('swift-box-change');
 						break;
 					}
 				}
@@ -1444,7 +1429,7 @@
 		}
 		// Create the shadow root element
 		else {
-			var $root = $('<div class="swift-select-shadow-root"></div>');
+			var $root = $('<div class="swift-box-shadow-root"></div>');
 		}
 
 		// Append the template to the root
@@ -1470,7 +1455,7 @@
 			return $(roots);
 		}
 
-		var shadow_root = $this.find('.swift-select-shadow-root');
+		var shadow_root = $this.find('.swift-box-shadow-root');
 		return shadow_root;
 	}
 
@@ -1640,7 +1625,7 @@
 		}
 	};
 
-	$.fn.swiftSelect = function() {
+	$.fn.swiftbox = function() {
 		var args      = Array.prototype.slice.call(arguments, 0);
 		var method    = args.shift();
 		var $elements = $(this);
@@ -1659,7 +1644,7 @@
 			return methods[method].apply($elements, args);
 		}
 
-		throw new Error('Invalid SwiftSelect method: ' + method);
+		throw new Error('Invalid SwiftBox method: ' + method);
 	};
 
 	// Extend the :input pseudo-selector
@@ -1669,11 +1654,11 @@
 
 		// Return true if the element matches the original selector
 		if(jquery_input_selector(element)) {
-			return !$element.closest(tag_name).length
+			return !$element.closest('swift-box').length
 		}
 
 		// Otherwise, determine if the element is a select
-		return $element.is(tag_name);
+		return $element.is('swift-box');
 	};
 
 	// Extend the $.val method
@@ -1683,16 +1668,16 @@
 		if(value === undefined) {
 			var $first = this.first();
 
-			if($first.is(tag_name)) {
-				return $first.swiftSelect('value');
+			if($first.is('swift-box')) {
+				return $first.swiftbox('value');
 			}
 
 			return jquery_val.call(this);
 		}
 
 		// Otherwise, set the value on all elements
-		jquery_val.call(this.not(tag_name), value);
-		this.filter(tag_name).swiftSelect('value', value);
+		jquery_val.call(this.not('swift-box'), value);
+		this.filter('swift-box').swiftbox('value', value);
 
 		return this;
 	};
