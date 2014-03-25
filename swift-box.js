@@ -1,5 +1,5 @@
 /*!
- * SwiftBox Combobox
+ * SwiftBox
  * https://github.com/Knotix/SwiftBox/
  *
  * Copyright 2014 Samuel Hodge
