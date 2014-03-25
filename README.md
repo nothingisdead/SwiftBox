@@ -1,5 +1,4 @@
-SwiftSelect
+SwiftBox
 ===========
 
-Docs coming soon.
-[View the demo](http://knotix.github.io/SwiftSelect/)
+Fast, lightweight combobox plugin for jQuery
