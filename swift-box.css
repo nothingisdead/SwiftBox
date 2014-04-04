@@ -2,8 +2,8 @@
 /* Global
 /* ========================================================================== */
 
-.swift-box-template {
-	display: none;
+.swift-box-hidden {
+	display: none !important;
 }
 
 .swift-box-shadow-root {
@@ -20,9 +20,12 @@ swift-box {
 	vertical-align: text-top;
 	min-width: 30px;
 	width: 120px;
-	height: 1.55em;
+	height: 1.5em;
+	background-color: #FFF;
 	font-family: arial;
-	font-size: .9em;
+	font-size: inherit;
+	font-weight: normal;
+	text-align: left;
 	cursor: pointer;
 }
 
@@ -31,9 +34,12 @@ swift-box {
 	vertical-align: text-top;
 	min-width: 30px;
 	width: 120px;
-	height: 1.55em;
+	height: 1.5em;
+	background-color: #FFF;
 	font-family: arial;
-	font-size: .9em;
+	font-size: inherit;
+	font-weight: normal;
+	text-align: left;
 	cursor: pointer;
 }
 
@@ -47,6 +53,7 @@ swift-box[disabled] {
 
 .swift-box {
 	height: 100%;
+	line-height: 1;
 }
 
 .swift-box .container {
@@ -57,7 +64,7 @@ swift-box[disabled] {
 	max-height: 100%;
 	white-space: nowrap;
 	text-decoration: none;
-	color: #555;
+	color: #000;
 	cursor: inherit;
 }
 
@@ -78,7 +85,7 @@ swift-box[disabled] {
 .swift-box .text {
 	padding: 0 .2em;
 	border-right: 0;
-	background-color: #FFF;
+	background-color: transparent;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
@@ -120,13 +127,13 @@ swift-box[disabled] .swift-box .button {
 /* ========================================================================== */
 
 swift-box-options {
-	position: absolute;
+	position: fixed;
 	z-index: 2147483648;
 	display: block;
 	top: 0;
 	left: 0;
 	font-family: arial;
-	font-size: .9em;
+	font-size: inherit;
 	color: #000;
 }
 
@@ -137,7 +144,8 @@ swift-box-options {
 	top: 0;
 	left: 0;
 	font-family: arial;
-	font-size: .9em;
+	font-size: inherit;
+	color: #000;
 }
 
 .swift-box-options {
@@ -152,7 +160,8 @@ swift-box-options {
 
 .swift-box-options .container {
 	position: fixed;
-	border: 1px solid #777;
+	border: 1px solid #AAA;
+	outline: 1px solid #0AF;
 	background-color: #FFF;
 	box-shadow: 2px 2px 2px rgba(0, 0, 0, .2);
 }
@@ -168,8 +177,7 @@ swift-box-options {
 }
 
 .swift-box-options .input {
-	min-width: 100%;
-	width: 0;
+	width: 100%;
 	padding: 2px 3px;
 	border: 1px solid #AAA;
 	box-shadow: 2px 2px 2px rgba(0, 0, 0, .1) inset;
@@ -186,31 +194,24 @@ swift-box-options {
 .swift-box-options .multiple .helpers {
 	display: block;
 	padding: .2em 0;
-	overflow: hidden;
 }
 
 .swift-box-options .multiple .helper {
+	display: inline-block;
 	color: #00F;
 	font-size: .8em;
 	text-decoration: underline;
 	cursor: pointer;
 }
 
-.swift-box-options .multiple .all {
-	float: left;
-}
-
-.swift-box-options .multiple .clear {
-	float: right;
+.swift-box-options .multiple .helper + .helper {
+	margin-left: .2em;
 }
 
 .swift-box-options .scroll {
 	position: relative;
 	overflow: auto;
-}
-
-.swift-box-options .hidden {
-	display: none;
+	min-width: 100%;
 }
 
 .swift-box-options .sizer {
@@ -223,11 +224,10 @@ swift-box-options {
 	left: 0;
 }
 
-.swift-box-options .option,
-.swift-box-options .none {
+.swift-box-options .option {
 	padding: 0 4px;
-	height: 20px;
-	line-height: 20px;
+	height: 1.4em;
+	line-height: 1.4em;
 	color: #000;
 	white-space: nowrap;
 	cursor: pointer;
@@ -237,21 +237,17 @@ swift-box-options {
 	display: none;
 }
 
-.swift-box-options .empty {
-	overflow: visible;
-}
-
 .swift-box-options .none {
 	display: none;
 	cursor: default;
 }
 
 .swift-box-options .empty .none {
+	padding: 4px;
 	display: block;
-}
-
-.swift-box-options .option.hidden {
-	display: none;
+	line-height: 1.4em;
+	color: #444;
+	font-style: italic;
 }
 
 .swift-box-options .option.highlight {
