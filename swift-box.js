@@ -8,6 +8,11 @@
  *
  * @TODO: Add support for components when they become relevant
  */
+
+/**
+ * In most cases, jQuery is avoided for performance reasons
+ */
+
 (function($, window, undefined) {
 	'use strict';
 
@@ -19,14 +24,21 @@
 	var $window   = $(window);
 	var $document = $(window.document);
 
+	// Determine how to get an element's text
+	var textContent = document.textContent !== undefined ? 'textContent' : 'innerText';
+
+	// Get the CSS url so shadow DOM can import the stylesheet
+	var import_style_href = window.swiftbox_style_href;
+
 	// Feature support detection
+	var test_element  = document.createElement('div');
 	var test_template = document.createElement('template');
 	var test_canvas   = document.createElement('canvas');
 
 	var supports = {
-		components   : false, //!!document.register
-		templates    : !!test_template.content,
-		canvas       : !!test_canvas.getContext
+		components : !!import_style_href && !!document.register && (!!test_element.createShadowRoot || !!test_element.webkitCreateShadowRoot) && false,
+		templates  : !!test_template.content,
+		canvas     : !!test_canvas.getContext
 	};
 
 	// Determine what element to use for templating (IE compatibility)
@@ -35,19 +47,8 @@
 	// Get the context of the canvas if supported
 	var canvas_context = supports.canvas ? test_canvas.getContext('2d') : null;
 
-	// Get the CSS url
-	var style_href = window.swift_box_style_href;
-	if(!style_href) {
-		var script_src = $('script').last().prop('src');
-		style_href = script_src.slice(0, -3) + '.css';
-	}
-
-	// Determine how the CSS will be loaded
-	var global_style_import    = supports.components ? '' : '<link rel="stylesheet" href="' + style_href + '">';
-	var component_style_import = supports.components ? '<style>@import url(' + style_href + ');</style>' : '';
-
-	// Append the global style if needed
-	$(document.documentElement).append(global_style_import);
+	// Import rule for shadow DOM
+	var component_style_import = supports.components ? '<style>@import url(' + import_style_href + ');</style>' : '';
 
 	// Array.indexOf for IE8
 	function indexOf(array, value) {
@@ -66,8 +67,11 @@
 	}
 
 	// =========================================================================
-	// Variables
+	// Common variables
 	// =========================================================================
+
+	// Used to cache element data for performance
+	var element_cache = [];
 
 	// Stores the option arrays
 	var option_arrays = [];
@@ -79,7 +83,7 @@
 	var config_objects = [];
 
 	// Stores the currently active select
-	var $active_select = null;
+	var active_select = null;
 
 	// Stores the current list of filtered options
 	var filtered_option_array = [];
@@ -88,13 +92,73 @@
 	var highlighted_option_index = null;
 
 	// The maximum number of visible options
-	var max_visible_options = 15;
+	var max_visible_options = 10;
 
 	// RegExp used to escape RegExp special characters
 	var escape_regex = /([-[\]{}()*+?.,\\^$|#\s])/g;
 
 	// RegExp used to remove tags from option text
 	var tag_regexp = /<[^>]+>/g;
+
+	// Hiddent input container template - raw element for performance
+	var hidden_input_container = $('<div class="swift-box-hidden-input-container"></div>').get(0);
+
+	// Hidden input template - raw element for performance
+	var hidden_input = $('<input type="hidden" class="swift-box-hidden-input">').get(0);
+
+	// Shadow root shim
+	var shadow_root_shim = $('<div class="swift-box-shadow-root"></div>').get(0);
+
+	// =========================================================================
+	// Utility functions
+	// =========================================================================
+
+	function normalizeElementArray(elements) {
+		if(elements === undefined || elements === null) {
+			return [];
+		}
+
+		if(elements.length === undefined) {
+			return [elements];
+		}
+
+		return elements;
+	}
+
+	/**
+	 * Caches elements within a SwiftBox for quicker retrieval
+	 * @param  {Object} element The SwiftBox element
+	 * @return {Object}         An object containing references to various elements within the shadow DOM
+	 * @todo Implement weakmaps when they are relevant
+	 */
+	function getElementCache(element) {
+		element = normalizeElementArray(element)[0];
+
+		if(!element) {
+			return {};
+		}
+
+		if(element.__swiftbox__ === undefined) {
+			element.__swiftbox__ = element_cache.length;
+
+			var shadow_root;
+
+			if(supports.components) {
+				shadow_root = element.shadowRoot || element.webkitShadowRoot;
+			}
+			else {
+				shadow_root = element.querySelector('.swift-box-shadow-root');
+			}
+
+			element_cache.push({
+				container : shadow_root.querySelector('.container'),
+				text      : shadow_root.querySelector('.text'),
+				button    : shadow_root.querySelector('.button')
+			});
+		}
+
+		return element_cache[element.__swiftbox__];
+	}
 
 	// =========================================================================
 	// Custom Tags
@@ -103,11 +167,11 @@
 	// Register the tags as components if supported
 	if(supports.components) {
 		document.register('swift-box', {
-			prototype: Object.create(HTMLDivElement.prototype)
+			prototype: Object.create(HTMLElement.prototype)
 		});
 
 		document.register('swift-box-options', {
-			prototype: Object.create(HTMLDivElement.prototype)
+			prototype: Object.create(HTMLElement.prototype)
 		});
 	}
 	// Otherwise, create the tags for styling compatibilty
@@ -121,24 +185,24 @@
 	// =========================================================================
 
 	var input_html = [
-		'<' + template_element + ' class="swift-box-template">',
+		'<' + template_element + ' class="swift-box-hidden">',
 			component_style_import,
 			'<div class="swift-box">',
 				'<a href="#" class="container">',
 					'<div class="text"></div>',
-					'<div class="button">▼</div>',
+					'<div class="button">&#9660;</div>',
 				'</a>',
 			'</div>',
 		'</' + template_element + '>'
 	].join('');
 
 	var options_html = [
-		'<' + template_element + ' class="swift-box-template">',
+		'<' + template_element + ' class="swift-box-hidden">',
 			component_style_import,
 			'<div class="swift-box-options">',
-				'<div class="container hidden">',
+				'<div class="container swift-box-hidden">',
 					'<div class="input-container">',
-						'<input class="input" tabindex="-1" placeholder="Filter">',
+						'<input class="input" tabindex="-1" size="1" placeholder="Filter">',
 						'<div class="helpers">',
 							'<div class="all helper">Check all visible</div>',
 							'<div class="clear helper">Clear selected</div>',
@@ -148,14 +212,12 @@
 					'<div class="scroll">',
 						'<div class="sizer"></div>',
 						'<div class="list">',
-							Array(max_visible_options + 2).join(
-								[
-									'<div class="option">',
-										'<span class="state"></span>',
-										'<span class="text"></span>',
-									'</div>'
-								].join('')
-							),
+							Array(max_visible_options + 2).join([
+								'<div class="option">',
+									'<span class="state"></span>',
+									'<span class="text"></span>',
+								'</div>'
+							].join('')),
 						'</div>',
 						'<div class="none">No Options Found</div>',
 					'</div>',
@@ -165,38 +227,35 @@
 	].join('');
 
 	// Convert the templates to elements and append them to the document
-	var $input_template   = $(input_html).appendTo(document.documentElement);
-	var $options_template = $(options_html).appendTo(document.documentElement);
+	var input_template   = $(input_html).get(0);
+	var options_template = $(options_html).get(0);
+
+	document.documentElement.appendChild(input_template);
+	document.documentElement.appendChild(options_template);
 
 	// Get the DOM from the template
-	if(supports.templates) {
-		var $input_dom   = $($input_template.prop('content'));
-		var $options_dom = $($options_template.prop('content'));
-	}
-	else {
-		var $input_dom   = $input_template.children();
-		var $options_dom = $options_template.children();
-	}
+	var input_template_dom   = supports.templates ? input_template.content : input_template.firstElementChild;
+	var options_template_dom = supports.templates ? options_template.content : options_template.firstElementChild;
 
 	// =========================================================================
 	// Option List
 	// =========================================================================
 
-	// Create the option list
-	var $options = $(document.createElement('swift-box-options'));
+	// Create the option list - Use document.createElement for compatibility
+	var swiftbox_options = document.createElement('swift-box-options');
 
 	// Create the shadow root for the option list
-	createShadowRoot.call($options, $options_dom);
+	var options_shadow_root = createShadowRoot(swiftbox_options, options_template_dom);
 
 	// Store some references to important option list elements
-	var $option_container = findInShadowRoot.call($options, '.container');
-	var $option_input     = findInShadowRoot.call($options, '.input');
-	var $option_all       = findInShadowRoot.call($options, '.all');
-	var $option_clear     = findInShadowRoot.call($options, '.clear');
-	var $option_scroll    = findInShadowRoot.call($options, '.scroll');
-	var $option_sizer     = findInShadowRoot.call($options, '.sizer');
-	var $option_list      = findInShadowRoot.call($options, '.list');
-	var $option_elements  = findInShadowRoot.call($options, '.option');
+	var $option_container = $('.container', options_shadow_root);
+	var $option_input     = $('.input', options_shadow_root);
+	var $option_all       = $('.all', options_shadow_root);
+	var $option_clear     = $('.clear', options_shadow_root);
+	var $option_scroll    = $('.scroll', options_shadow_root);
+	var $option_sizer     = $('.sizer', options_shadow_root);
+	var $option_list      = $('.list', options_shadow_root);
+	var $option_elements  = $('.option', options_shadow_root);
 
 	// =========================================================================
 	// Event Handlers
@@ -209,24 +268,23 @@
 
 	// Typing within the filter input filters the options
 	$option_input.on('keyup', function(e) {
-		var $this      = $(this);
-		var value      = $this.val();
-		var last_value = $this.data('last-text');
+		var value      = this.value;
+		var last_value = this.getAttribute('data-last-text');
 
 		if(value !== last_value) {
-			filterOptions.call($active_select, value, true);
+			filterOptions(value, true);
 
-			$this.data('last-text', value);
+			this.setAttribute('data-last-text', value);
 		}
 	});
 
 	// Click the check all button selects all visible options on multi-selects
 	$option_all.on('click', function() {
-		if(isDisabled.call($active_select)) {
+		if(isDisabled(active_select)) {
 			return;
 		}
 
-		var selected_indexes = getSelectedIndexes.call($active_select);
+		var selected_indexes = getSelectedIndexes(active_select);
 		var new_indexes      = [];
 		var index_map        = {};
 
@@ -247,18 +305,18 @@
 			new_indexes.push(index);
 		}
 
-		setSelectedIndexes.call($active_select, new_indexes);
+		setSelectedIndexes(active_select, new_indexes);
 		$option_input.focus();
 		renderOptions();
 	});
 
-	// Clicking the clear button clears the select value
+	// Clicking the clear button clears the selected values
 	$option_clear.on('click', function() {
-		if(isDisabled.call($active_select)) {
+		if(isDisabled(active_select)) {
 			return;
 		}
 
-		setSelectedIndexes.call($active_select, []);
+		setSelectedIndexes(active_select, []);
 		$option_input.focus();
 		renderOptions();
 	});
@@ -270,20 +328,20 @@
 
 	// Hovering over an option highlights it
 	$option_list.on('mouseenter', '.option', function() {
-		var filtered_index = $(this).data('filtered-index');
+		var filtered_index = this.getAttribute('data-filtered-index');
 		highlightOption(filtered_index);
 	});
 
 	// Clicking an option selects it
 	$option_list.on('mouseup', '.option', function(e) {
-		if(e.which !== 1 || isDisabled.call($active_select)) {
+		if(e.which !== 1 || isDisabled(active_select)) {
 			return;
 		}
 
 		selectHighlightedOption();
 
 		// For single selects, hide the options when once is clicked
-		if(!isMultiple.call($active_select)) {
+		if(!isMultiple(active_select)) {
 			hideOptions();
 		}
 		// Multiple selects remain open
@@ -294,11 +352,23 @@
 
 	// Clicking a select toggles the option list
 	$document.on('click', 'swift-box', function(e) {
-		if($(this).is($active_select) || isDisabled.call(this)) {
+		if(this === active_select || isDisabled(this)) {
 			hideOptions();
 		}
 		else {
-			showOptions.call(this);
+			showOptions(this);
+		}
+	});
+
+	$document.on('focusin', 'swift-box', function() {
+		if(this !== active_select) {
+			addFocusClass(this);
+		}
+	});
+
+	$document.on('focusout', 'swift-box', function() {
+		if(this !== active_select) {
+			removeFocusClass(this);
 		}
 	});
 
@@ -309,7 +379,7 @@
 
 	// Pressing down arrow or letter keys shows the option list
 	$document.on('keydown keypress', 'swift-box', function(e) {
-		if($(this).is($active_select) || isDisabled.call(this)) {
+		if(this === active_select || isDisabled(this)) {
 			return;
 		}
 
@@ -321,10 +391,21 @@
 		}
 		else {
 			show = which === 40;
+
+			// Because we use an <a> tag to allow tabbing into the select, we need
+			// to prevent the enter key from triggering a "click" event on it
+			if(which === 13) {
+				e.preventDefault();
+
+				// If we are not showing the options, submit the parent form
+				if(!show) {
+					$(this).closest('form').trigger('submit');
+				}
+			}
 		}
 
 		if(show) {
-			showOptions.call(this);
+			showOptions(this);
 			e.preventDefault();
 
 			if(e.type === 'keypress') {
@@ -336,7 +417,7 @@
 
 	// Arrow keys maneuver through the option list
 	$option_input.on('keydown', function(e) {
-		if(!$active_select) {
+		if(!active_select) {
 			return;
 		}
 
@@ -360,7 +441,7 @@
 
 	// Tab/Enter selects the highlighted option
 	$document.on('keydown', function(e) {
-		if(!$active_select) {
+		if(!active_select) {
 			return;
 		}
 
@@ -372,20 +453,23 @@
 				e.preventDefault();
 			}
 
-			// In singular mode, tab or enter selectes the current option and hides the options
-			if(!isMultiple.call($active_select)) {
+			// In singular mode, tab or enter selects the current option and hides the options
+			if(!isMultiple(active_select)) {
 				selectHighlightedOption();
 				hideOptions();
 			}
-			// In multiple mode, only the enter key selects options
-			else if(keyCode === 13) {
-				selectHighlightedOption();
-				renderOptions();
-			}
-			// In multiple mode, the tab key hides options and moves to the next field
+			// In multiple mode
 			else {
-				hideOptions();
-				focus.call($active_select);
+				// Only the enter key selects options
+				if(keyCode === 13) {
+					selectHighlightedOption();
+					renderOptions();
+				}
+				// The tab key hides options and moves to the next field
+				else {
+					hideOptions();
+					focus(active_select);
+				}
 			}
 		}
 	});
@@ -394,14 +478,18 @@
 	$document.on('keydown', function(e) {
 		var keyCode = e.which;
 
-		if($active_select && keyCode === 27) {
+		if(active_select && keyCode === 27) {
 			hideOptions();
 		}
 	});
 
 	// Clicking anywhere in the document hides the options
 	$document.on('mousedown', function(e) {
-		// Make sure the target of the close is not within the option list
+		if(!active_select) {
+			return;
+		}
+
+		// Make sure the target of the click is not within the option list
 		if(!$(e.target).closest('swift-box, swift-box-options').length) {
 			hideOptions();
 		}
@@ -410,13 +498,31 @@
 		}
 	});
 
+	// Shim label behavior
+	$document.on('click', 'label', function() {
+		var for_target = this.for;
+		var element;
+
+		// Get the element the label is linked to
+		if(for_target) {
+			element = document.getElementById(for_target);
+		}
+		else {
+			element = this.querySelector('swift-box');
+		}
+
+		if(element && element !== active_select && element.tagName === 'SWIFT-BOX') {
+			$(element).trigger('click');
+		}
+	});
+
 	// Scrolling or resizing the window repositions the option list
 	$window.on('scroll resize', function() {
-		if(!$active_select) {
+		if(!active_select) {
 			return;
 		}
 
-		positionOptions.call($active_select);
+		positionOptions();
 	});
 
 	// =========================================================================
@@ -424,18 +530,23 @@
 	// =========================================================================
 
 	/**
-	 * Initializes select elements
-	 * @return {Object} A jQuery object containing the initialized elements
+	 * Converts select elements into SwiftBoxes
+	 * @return {Array} An array of SwiftBoxes
 	 */
-	function initialize(config) {
-		var $elements = $(this).map(function() {
-			var $this = $(this);
+	function SwiftBox(elements, config) {
+		elements = normalizeElementArray(elements);
 
-			var tag = $this.prop('tagName').toLowerCase();
+		var new_elements = [];
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element = elements[i];
+
+			var tag = element.tagName.toLowerCase();
 
 			// If the element is already initialized, we're done
 			if(tag === 'swift-box') {
-				return this;
+				new_elements.push(element);
+				continue;
 			}
 
 			// Make sure the element is a select
@@ -444,53 +555,77 @@
 			}
 
 			// Create the new element
-			var $new_element = $(document.createElement('swift-box'));
+			var new_element = document.createElement('swift-box');
 
 			// Append the select template to the new element
-			createShadowRoot.call($new_element, $input_dom);
+			createShadowRoot(new_element, input_template_dom);
 
 			// Copy all attributes from the select to the new element
-			var attributes = this.attributes;
-			for(var i = 0; i < attributes.length; ++i) {
-				var attribute = attributes[i];
+			var attributes = element.attributes;
+			for(var j = 0; j < attributes.length; ++j) {
+				var attribute = attributes[j];
 
 				// Classes need to be appended to the new element
 				if(attribute.name === 'class') {
-					$new_element.addClass(attribute.value);
+					new_element.className += ' ' + attribute.value;
 				}
 				// All other attributes except name are directly copied
 				else if(attribute.name !== 'name') {
-					$new_element.attr(attribute.name, attribute.value);
+					new_element.setAttribute(attribute.name, attribute.value);
 				}
 			}
 
 			// Store the name property for use later within hidden inputs
-			$new_element.attr('data-swift-box-name', $this.prop('name'));
+			new_element.setAttribute('data-swift-box-name', element.name);
 
 			// Add a container for hidden inputs
-			var $hidden_input = $('<div>').addClass('hidden-input-container').appendTo($new_element);
+			new_element.appendChild(hidden_input_container.cloneNode(true));
 
 			// Replace the old element
-			$this.replaceWith($new_element);
+			var parent_node = element.parentNode;
+			if(parent_node) {
+				parent_node.insertBefore(new_element, element);
+				parent_node.removeChild(element);
+			}
 
 			// Extract existing options
-			var option_array = extractOptionArrayFromSelect.call(this);
-			setOptionArray.call($new_element, option_array);
+			var option_array = extractOptionArrayFromSelect(element);
+			setOptionArray(new_element, option_array, null);
 
 			// Set the selected index
-			setSelectedIndexes.call($new_element, $(this).prop('selectedIndex'));
+			setSelectedIndexes(new_element, element.selectedIndex);
 
-			return $new_element.get(0);
-		});
-
-		// Set the configuration options on all elements passed in
-		var $configure_elements = config ? $elements : $elements.not('[data-swift-box-config]');
-		if($configure_elements.length) {
-			config = $.extend({}, defaults, config);
-			setConfigObject.call($configure_elements, config);
+			new_elements.push(new_element);
 		}
 
-		return $elements;
+
+		// Stores the elements needing configuration
+		var config_elements;
+
+		// If a config object was passed, all elements receive the config
+		if(config) {
+			config_elements = new_elements;
+		}
+		// Otherwise, only non-configured elements receive the config
+		else {
+			config_elements = [];
+
+			for(var i = 0; i < new_elements.length; ++i) {
+				var element = new_elements[i];
+
+				if(!element.hasAttribute('data-swift-box-config')) {
+					config_elements.push(element);
+				}
+			}
+		}
+
+		// Add the configuration to the new elements
+		if(config_elements.length) {
+			config = $.extend(true, {}, defaults, config);
+			setConfig(config_elements, config);
+		}
+
+		return new_elements;
 	}
 
 	// =========================================================================
@@ -502,65 +637,75 @@
 	};
 
 	/**
-	 * Sets the configuration object on a select
-	 * @param {Object} config The configuration object to set
+	 * Merges a set of config options and makes them part of the default
+	 * @param {Object} config A config object
 	 */
-	function setConfigObject(config) {
-		var index = config_objects.push(config) - 1;
+	function setDefaultConfig(config) {
+		$.extend(true, defaults, config);
+	}
 
-		return $(this).attr('data-swift-box-config', index);
+	/**
+	 * Sets the configuration object on a select
+	 * @param {Array}  elements The SwiftBox elements
+	 * @param {Object} config   The configuration object to set
+	 */
+	function setConfig(elements, config) {
+		elements = normalizeElementArray(elements);
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element         = elements[i];
+			var index           = config_objects.length;
+			var existing_config = getConfig(element);
+			var new_config      = $.extend(true, {}, defaults, existing_config, config);
+
+			config_objects.push(new_config);
+			element.setAttribute('data-swift-box-config', index);
+		}
 	}
 
 	/**
 	 * Gets the configuration object on a select
-	 * @param {Object} config The configuration object
+	 * @param {Array}  elements The SwiftBox elements
+	 * @return {Object}         The configuration object
 	 */
-	function getConfigObject() {
-		var index = $(this).attr('data-swift-box-config');
+	function getConfig(element) {
+		element   = normalizeElementArray(element)[0];
+		var index = element && element.getAttribute('data-swift-box-config');
 
 		return config_objects[index];
 	}
 
 	/**
-	 * Sets a single configuration option on a select
-	 * @param {String} option The option to set
-	 * @param {String} value  The value to set
-	 */
-	function setConfigOption(option, value) {
-		$(this).each(function() {
-			var $this          = $(this);
-			var config         = getConfigObject.call($this);
-			var new_config     = $.extend({}, config);
-			new_config[option] = value;
-
-			setConfigObject.call($this, new_config);
-		});
-	}
-
-	/**
 	 * Gets a single configuration option on a select
-	 * @param {String} option The option to get
+	 * @param {Object} element The SwiftBox element
+	 * @param {String} option  The option to get
 	 */
-	function getConfigOption(option) {
-		var config = getConfigObject.call(this);
+	function getConfigOption(element, option) {
+		var config = getConfig(element);
 
-		return config[option];
+		return config && config[option];
 	}
 
 	/**
 	 * Determines if a select is a multi-select
-	 * @return {Boolean} Returns true if the select is a multi-select
+	 * @param  {Object}  element The SwiftBox element
+	 * @return {Boolean}
 	 */
-	function isMultiple() {
-		return $(this).attr('multiple') !== undefined;
+	function isMultiple(element) {
+		element = normalizeElementArray(element)[0];
+
+		return element && element.hasAttribute('multiple');
 	}
 
 	/**
 	 * Determines if a select is disabled
-	 * @return {Boolean} Returns true if the select is disabled
+	 * @param  {Object}  element The SwiftBox element
+	 * @return {Boolean}
 	 */
-	function isDisabled() {
-		return $(this).attr('disabled') !== undefined;
+	function isDisabled(element) {
+		element = normalizeElementArray(element)[0];
+
+		return element && element.hasAttribute('disabled');
 	}
 
 	// =========================================================================
@@ -569,67 +714,109 @@
 
 	/**
 	 * Sets the options on a select
-	 * @param {Array}   option_array      An array of objects containing a "value" and "text" property
+	 *
+	 * Accepts the following formats:
+	 * {
+	 *     123: 'foo',
+	 *     456: 'bar'
+	 * }
+	 * or
+	 * [
+	 *     {value: 123, text: 'foo'},
+	 *     {value: 456, text: 'bar'}
+	 * ]
+	 *
+	 * Be aware that some browsers do not maintain key order within objects, so
+	 * the first method may break the sort_function argument is null
+	 *
+	 * @param {Array}   elements          The SwiftBox elements
+	 * @param {Array}   option_array      The options to set
+	 * @param {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the options by text. Passing null will maintain the existing order.
 	 * @param {Boolean} remove_duplicates Set to true to remove duplicate values
 	 */
-	function setOptionArray(option_array, remove_duplicates) {
-		var $this = $(this);
+	function setOptionArray(elements, option_array, sort_function, remove_duplicates) {
+		elements = normalizeElementArray(elements);
 
 		// Normalize the option array
-		var normalized_option_array = normalizeOptionArray(option_array, remove_duplicates);
+		var normalized_option_array = normalizeOptionArray(option_array, sort_function, remove_duplicates);
+		var option_array_index;
 
-		// Check if the option array already exists
-		var index = findOptionArray(normalized_option_array.array);
+		if(normalized_option_array.array.length) {
+			// Check if the option array already exists
+			option_array_index = findOptionArray(normalized_option_array.array);
 
-		// Add the option array if it does not exist
-		if(index === -1) {
-			index = option_arrays.push(normalized_option_array.array) - 1;
-			option_array_value_maps.push(normalized_option_array.map);
+			// Add the option array if it does not exist
+			if(option_array_index === -1) {
+				option_array_index = option_arrays.length;
+
+				option_arrays.push(normalized_option_array.array);
+				option_array_value_maps.push(normalized_option_array.map);
+			}
 		}
 
-		// Store a reference to the option array
-		$this.attr('data-swift-box-options', index);
+		// Get the width based on the options
+		var option_width = calculateWidth(elements, normalized_option_array.array);
 
-		$this.each(function() {
+		for(var i = 0; i < elements.length; ++i) {
+			var element = elements[i];
+
 			// Get any existing values
-			var values = getValues.call(this);
+			var values = getValues(element);
+
+			// Get any attempted values
+			var attempted_values = element.getAttribute('data-swift-box-attempted-values');
+
+			// Store the index of the option array on the element
+			element.setAttribute('data-swift-box-options', option_array_index);
 
 			// If values were found, set them
 			if(values.length) {
-				setValues.call(this, values);
+				setValues(element, values);
+			}
+			// If we previously tried to set values without any options, try again
+			else if(attempted_values) {
+				attempted_values = JSON.parse(attempted_values);
+				setValues(element, attempted_values);
 			}
 			// Otherwise, single selects default to the first option
-			else if(!isMultiple.call(this)) {
-				setSelectedIndexes.call(this, 0);
+			else if(!isMultiple(element)) {
+				setSelectedIndexes(element, 0);
 			}
-		});
 
-		// Set the width based on the options
-		var option_width = calculateWidth.call($this, option_array);
-		$(this).css('width', option_width);
+			// Set the width of the element to match the options
+			element.style.width = option_width + 'px';
+		}
 	}
 
 	/**
 	 * Add options to a select
-	 * @param {Array}   option_array      An array of objects containing a "value" and "text" property
+	 * @param {Array}   elements          The SwiftBox elements
+	 * @param {Array}   option_array      The options to add
+	 * @param {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the options by text. Passing null will maintain the existing order.
 	 * @param {Boolean} remove_duplicates Set to true to remove duplicate values
 	 */
-	function addOptionArray(option_array, remove_duplicates) {
+	function addOptionArray(elements, option_array, sort_function, remove_duplicates) {
+		elements = normalizeElementArray(elements);
+
 		var normalized_option_array = normalizeOptionArray(option_array);
 
-		$(this).each(function() {
-			var existing_option_array = getOptionArray.call(this);
+		for(var i = 0; i < elements.length; ++i) {
+			var element               = elements[i];
+			var existing_option_array = getOptionArray(element) || [];
 			var new_option_array      = existing_option_array.concat(normalized_option_array.array);
 
-			setOptionArray.call(this, new_option_array, remove_duplicates);
-		});
+			setOptionArray(element, new_option_array, remove_duplicates);
+		}
 	}
 
 	/**
 	 * Removes a list of values from a select's options
-	 * @param  {[type]} value_array An array of values to remove
+	 * @param {Array} elements    The SwiftBox elements
+	 * @param {Array} value_array An array of values to remove
 	 */
-	function removeOptionArray(value_array) {
+	function removeOptionArray(elements, value_array) {
+		elements = normalizeElementArray(elements);
+
 		if(!(value_array instanceof Array)) {
 			throw new Error('Invalid value array: ' + value_array);
 		}
@@ -639,28 +826,39 @@
 			value_array[i] = value_array[i] + '';
 		}
 
-		$(this).each(function() {
-			var existing_option_array = getOptionArray.call(this);
+		for(var i = 0; i < elements.length; ++i) {
+			var element               = elements[i];
+			var existing_option_array = getOptionArray(element);
 			var new_option_array      = [];
 
-			for(var i = 0; i < existing_option_array.length; ++i) {
-				var option = existing_option_array[i];
+			if(!existing_option_array) {
+				return;
+			}
+
+			for(var j = 0; j < existing_option_array.length; ++j) {
+				var option = existing_option_array[j];
 
 				if(value_array.indexOf(option.value) === -1) {
 					new_option_array.push(option);
 				}
 			}
 
-			setOptionArray.call(this, new_option_array);
-		});
+			setOptionArray(element, new_option_array);
+		}
 	}
 
 	/**
 	 * Converts an array of options into an optimized array for internal use
-	 * @param  {Array} option_array The array to normalize
-	 * @return {Array}              The normalized array
+	 * @param  {Array}   option_array      The options to add
+	 * @param  {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the options by text. Passing null will maintain the existing order.
+	 * @param  {Boolean} remove_duplicates Set to true to remove duplicate values
+	 * @return {Array}                     The normalized option array
 	 */
-	function normalizeOptionArray(option_array, remove_duplicates) {
+	function normalizeOptionArray(option_array, sort_function, remove_duplicates) {
+		if(option_array === undefined || option_array === null) {
+			option_array = [];
+		}
+
 		if(typeof option_array !== 'object') {
 			throw new Error('Invalid option_array: ' + option_array);
 		}
@@ -685,7 +883,7 @@
 			}
 			else {
 				value = key;
-				text  = option + '';
+				text  = option;
 			}
 
 			if(value === undefined || value === null) {
@@ -698,7 +896,7 @@
 
 			// Normalize value and text
 			value = value + '';
-			text  = $.trim(text.replace(tag_regexp + '', ''));
+			text  = $.trim((text + '').replace(tag_regexp + '', ''));
 
 			var new_option = {
 				index          : index,
@@ -709,13 +907,32 @@
 
 			var existing_index = map[value];
 
+			// If we are removing duplicated, overwrite the option if it exists
 			if(remove_duplicates && existing_index !== undefined) {
 				array[existing_index] = new_option;
 			}
+			// Otherwise add the option to the array
 			else {
 				array.push(new_option);
 				map[value] = index;
 				++index;
+			}
+		}
+
+		// Sort the option array if necessary
+		if(sort_function !== null) {
+			// If undefined or true is passed in as the sort function, use the default sort
+			if(sort_function === undefined || sort_function === true) {
+				sort_function = defaultSortFunction;
+			}
+
+			array.sort(sort_function);
+
+			// Update the indexes with the new order
+			for(var i = 0; i < array.length; ++i) {
+				var option        = array[i];
+				option.index      = i;
+				map[option.value] = i;
 			}
 		}
 
@@ -727,15 +944,15 @@
 
 	/**
 	 * Extracts options from a traditional <select>
-	 * @return {Array} An array of options
+	 * @param  {Object} select The select
+	 * @return {Array}         An array of options
 	 */
-	function extractOptionArrayFromSelect() {
-		var $this           = $(this);
-		var option_elements = $this.prop('options');
+	function extractOptionArrayFromSelect(select) {
+		var options = select.options;
 
 		var result = [];
-		for(var i = 0; i < option_elements.length; ++i) {
-			var option = option_elements[i];
+		for(var i = 0; i < options.length; ++i) {
+			var option = options[i];
 
 			result.push({
 				value: option.value,
@@ -748,45 +965,58 @@
 
 	/**
 	 * Gets the option array on a select
-	 * @return {Array} The option array
+	 * @param  {Object} element The SwiftBox element
+	 * @return {Array}
 	 */
-	function getOptionArray() {
-		var index = $(this).attr('data-swift-box-options');
-		return option_arrays[index] || [];
+	function getOptionArray(element) {
+		element   = normalizeElementArray(element)[0];
+		var index = element && element.getAttribute('data-swift-box-options');
+
+		return option_arrays[index];
 	}
 
 	/**
 	 * Shows the list of options for a select
+	 * @param {Object} element The SwiftBox element
 	 */
-	function showOptions() {
-		var $this = $(this).first();
+	function showOptions(element) {
+		element = normalizeElementArray(element)[0];
 
-		// For IE compatibility, ensure the option container is within the body
-		$options.appendTo(document.body || document.documentElement);
+		// Ensure the option container is within the body
+		// This is done here because the body element may not have existed previously
+		var main_element = document.body || document.documentElement;
+		if(swiftbox_options.parentNode !== main_element) {
+			main_element.appendChild(swiftbox_options);
+		}
+
+		// Remove the focus class on the currently active select
+		if(active_select) {
+			removeFocusClass(active_select);
+		}
 
 		// Store this select as the currently active select
-		$active_select = $this;
+		active_select = element;
 
 		// Clear the filter input
-		$option_input.val('').data('last-text', '');
+		$option_input.val('').attr('data-last-text', '');
 
 		// Add the focus class to the select for styling
-		getContainer.call($this).addClass('focus');
+		addFocusClass(element);
 
 		// Toggle the multiple class if the current select allows multiple values
-		$option_container.toggleClass('multiple', isMultiple.call($this));
+		$option_container.toggleClass('multiple', isMultiple(element));
 
 		// Show the option list
-		$option_container.removeClass('hidden');
+		$option_container.removeClass('swift-box-hidden');
 
 		// Reset the filter
-		filterOptions.call(this, '');
+		filterOptions('');
 
 		// Position the option list
-		positionOptions.call(this);
+		positionOptions();
 
 		// Highlight the currently selected option
-		var current_indexes = getSelectedIndexes.call(this);
+		var current_indexes = getSelectedIndexes(element);
 		var highlight_index = current_indexes[0] || 0;
 		highlightOption(highlight_index, true);
 
@@ -794,29 +1024,26 @@
 		$option_input.focus();
 	}
 
+	/**
+	 * Positions the option container appropriately close to the active select
+	 */
 	function positionOptions() {
-		var $this = $(this).first();
+		var $active_select = $(active_select);
+		var width          = $active_select.outerWidth();
+		var height         = $active_select.outerHeight();
+		var offset         = $active_select.offset();
+		var window_width   = $window.width();
+		var window_height  = $window.height();
 
-		// Get the position and dimensions of the select
-		var width    = $this.outerWidth();
-		var height   = $this.outerHeight();
-		var offset   = $this.offset();
+		var top_edge       = offset.top + height;
+		var left_edge      = offset.left;
+		var right_edge     = left_edge + $option_container.outerWidth();
+		var bottom_edge    = top_edge + $option_container.outerHeight();
 
-		// Correct for scrollbar position
-		offset.top  -= $window.scrollTop();
-		offset.left -= $window.scrollLeft();
-
-		var window_width  = $window.width();
-		var window_height = $window.height();
-		var top_edge      = offset.top + height + 2;
-		var left_edge     = offset.left - 1;
-		var right_edge    = left_edge + $option_container.outerWidth();
-		var bottom_edge   = top_edge + $option_container.outerHeight();
-
-		var top    = top_edge;
-		var right  = null;
-		var bottom = null;
-		var left   = left_edge;
+		var top            = top_edge;
+		var right          = null;
+		var bottom         = null;
+		var left           = left_edge;
 
 		// Save the current scroll position within the options
 		var scroll_top  = $option_scroll.scrollTop();
@@ -825,7 +1052,7 @@
 		// Prevent the list from going off the page
 		if(bottom_edge >= window_height) {
 			top    = null;
-			bottom = (window_height - offset.top) + 2;
+			bottom = window_height - offset.top;
 
 			$option_container.addClass('bottom');
 			$option_scroll.prependTo($option_container);
@@ -836,11 +1063,11 @@
 		}
 
 		if(right_edge >= window_width) {
-			right = 2;
+			right = 0;
 		}
 
 		if(left <= 0) {
-			left = 2;
+			left = 0;
 		}
 
 		// Position the option list
@@ -868,29 +1095,50 @@
 	 * @param  {String} filter_text The text to filter the options by
 	 */
 	function filterOptions(filter_text) {
-		// Get the options for the active select
-		var option_array = getOptionArray.call($active_select);
+		// Normalize the filter text
+		if(filter_text === undefined || filter_text === null) {
+			filter_text = '';
+		}
+		filter_text += '';
 
-		// Filter the options
-		filtered_option_array = filterOptionArray.call(this, option_array, filter_text);
+		// Get the options for the active select
+		var option_array = getOptionArray(active_select) || [];
+
+		// Filter only if text was passed in
+		if(filter_text.length) {
+			var filter_function = getConfigOption(active_select, 'filter_function');
+
+			if(typeof filter_function !== 'function') {
+				throw new Error('Invalid filter function: ' + filter_function);
+			}
+
+			filtered_option_array = filter_function(filter_text, option_array);
+		}
+		// Otherwise, reset the filtered options to the full option array
+		else {
+			for(var i = 0; i < option_array.length; ++i) {
+				var option = option_array[i];
+				option.highlight_text = option.text;
+			}
+
+			filtered_option_array = option_array;
+		}
 
 		// Show the empty message if no options match the filter
 		$option_scroll.toggleClass('empty', !filtered_option_array.length);
 
 		// Get some dimensions
-		var option_height        = $option_elements.outerHeight();
+		var option_height        = getOptionHeight();
 		var container_max_height = option_height * max_visible_options;
-		var sizer_width          = calculateWidth.call($active_select, option_array);
-		var sizer_min_width      = $active_select.outerWidth();
+		var sizer_width          = Math.max(calculateWidth(active_select, option_array), $(active_select).outerWidth());
 		var sizer_height         = option_height * filtered_option_array.length;
 
 		$option_scroll
 			.scrollTop(0)
 			.scrollLeft(0)
 			.css({
-				minWidth : sizer_min_width + 'px',
-				width    : sizer_width,
-				maxHeight: container_max_height + 'px'
+				width     : sizer_width - 2 + 'px',
+				maxHeight : container_max_height + 'px'
 			});
 
 		$option_sizer.css({
@@ -908,7 +1156,7 @@
 	 */
 	function renderOptions(scroll_top) {
 		// Hide all options initially
-		$option_elements.addClass('hidden');
+		$option_elements.addClass('swift-box-hidden');
 
 		// If there are no options, we're done
 		if(!filtered_option_array.length) {
@@ -925,10 +1173,10 @@
 		}
 
 		// Store the height of a single option
-		var option_height = $option_elements.outerHeight();
+		var option_height = getOptionHeight();
 
 		// Get the currently selected indexes
-		var current_indexes = getSelectedIndexes.call($active_select);
+		var current_indexes = getSelectedIndexes(active_select);
 
 		// Calculate the position of the visible options within the scrollable area
 		var top = scroll_top - (scroll_top % option_height);
@@ -951,9 +1199,9 @@
 			var option_index   = option.index;
 
 			$option_elements.eq(i)
-				.data('index', option_index)
-				.data('filtered-index', filtered_index)
-				.removeClass('hidden')
+				.attr('data-index', option_index)
+				.attr('data-filtered-index', filtered_index)
+				.removeClass('swift-box-hidden')
 				.toggleClass('highlight', filtered_index === highlighted_option_index)
 				.toggleClass('selected', indexOf(current_indexes, option_index) !== -1)
 					.find('.text')
@@ -968,16 +1216,18 @@
 	 */
 	function hideOptions() {
 		// Hide the option list
-		$option_container.addClass('hidden');
+		$option_container.addClass('swift-box-hidden');
 
-		// Remove the focus class from the select
-		getContainer.call($active_select).removeClass('focus');
+		if(active_select) {
+			// Remove the focus class from the select
+			removeFocusClass(active_select);
 
-		// Focus on the select, blurring the filter input
-		focus.call($active_select);
+			// Focus on the select, blurring the filter input
+			focus(active_select);
 
-		// Clear the active select
-		$active_select = null;
+			// Clear the active select
+			active_select = null;
+		}
 	}
 
 	/**
@@ -987,7 +1237,7 @@
 	 */
 	function highlightOption(index, top) {
 		var scroll_height = $option_scroll.height();
-		var option_height = $option_elements.outerHeight();
+		var option_height = getOptionHeight();
 
 		index = +index || 0;
 		index = Math.max(index, 0);
@@ -1026,8 +1276,8 @@
 
 		// Multiple selects need to toggle the selected option based on if it
 		// already exists within the selected options or not
-		if(isMultiple.call($active_select)) {
-			var new_indexes = getSelectedIndexes.call($active_select);
+		if(isMultiple(active_select)) {
+			var new_indexes = getSelectedIndexes(active_select);
 			var exists = indexOf(new_indexes, index);
 
 			// If the option isn't selected, select it
@@ -1041,45 +1291,76 @@
 		}
 
 		// Set the new selected indexes
-		setSelectedIndexes.call($active_select, new_indexes, true);
+		setSelectedIndexes(active_select, new_indexes, true);
+	}
+
+	/**
+	 * Calculates the height of a single option
+	 * Additionally, this forces the all options to have the same height to account for rounding by the browser
+	 * @return {[type]} [description]
+	 */
+	function getOptionHeight() {
+		// Reset the height on the elements
+		$option_elements.css({
+			height     : '',
+			lineHeight : ''
+		});
+
+		// Get the height of the first element
+		var height = Math.round($option_elements.outerHeight());
+
+		$option_elements.css({
+			height     : height + 'px',
+			lineHeight : height + 'px'
+		});
+
+		return height;
 	}
 
 	/**
 	 * Gets the option value map for a select
-	 * @return {Object} The value map
+	 * @param  {Object}      element The SwiftBox element
+	 * @return {Object|null}         The value map or null if no options are set
 	 */
-	function getOptionValueMap() {
-		var index = $(this).attr('data-swift-box-options');
-		return option_array_value_maps[index] || {};
+	function getOptionValueMap(element) {
+		element   = normalizeElementArray(element)[0];
+		var index = element && element.getAttribute('data-swift-box-options');
+
+		return option_array_value_maps[index];
 	}
 
 	/**
 	 * Calculates the width of the select based on widest option.
 	 * In older browsers that don't support canvas, the width is
 	 * approximated, possibly failing miserably.
+	 * @param  {Object} element      The SwiftBox element
 	 * @param  {Array}  option_array The array of options
 	 * @return {Number}              The width of the widest option
 	 */
-	function calculateWidth(option_array) {
-		var $this = $(this);
+	function calculateWidth(element, option_array) {
+		element      = normalizeElementArray(element)[0];
+		option_array = option_array || [];
 
-		// Set the font CSS on the canvas
+		var $element    = $(element);
+		var font_size   = $element.css('font-size');
+		var font_family = $element.css('font-family');
+
+		// Set the font on the canvas
 		if(supports.canvas) {
-			var font = $this.css('font-size') + ' ' + $this.css('font-family');
-			canvas_context.font = font;
+			canvas_context.font = font_size + ' ' + font_family;
 		}
 
 		var max_width = 0;
-		var width;
 
 		for(var i = 0; i < option_array.length; ++i) {
 			var option = option_array[i];
+			var width;
 
 			// In modern browsers, we can accurately measure the text using the canvas
 			if(supports.canvas) {
 				width = canvas_context.measureText(option.text).width;
 			}
-			// In older browser, use the text length
+			// In older browsers, use the text length
 			else {
 				width = option.text.length;
 			}
@@ -1087,24 +1368,18 @@
 			max_width = Math.max(width, max_width);
 		}
 
-		// In modern browsers, use the precise pixel width
-		if(supports.canvas) {
-			// Add the button's width
-			var button_width = findInShadowRoot.call($this, '.button').outerWidth();
-			max_width += button_width;
-
-			// Add some extra pixels to account for padding
-			max_width += 10;
-
-			return max_width + 'px';
+		// In older browsers, estimate based on the text length
+		if(!supports.canvas) {
+			max_width = Math.max(max_width, 8) * .75 * parseFloat(font_size);
 		}
-		// In older browsers, approximate using ems
-		else {
-			// Ensure a minimum width
-			max_width = Math.max(max_width, 8);
 
-			return (max_width * .75) + 'em';
-		}
+		// Add the button's width
+		max_width += $(getElementCache(element).button).outerWidth();
+
+		// Add some extra pixels to account for padding
+		max_width += 10;
+
+		return max_width;
 	}
 
 	/**
@@ -1137,39 +1412,17 @@
 		return -1;
 	}
 
-	/**
-	 * Filters an option array based on given text
-	 * @param  {Array}  option_array The option array to filter
-	 * @param  {String} filter_text  The text to filter by
-	 * @return {Array}               The filtered option array
-	 */
-	function filterOptionArray(option_array, filter_text) {
-		var filtered_option_array = option_array;
-
-		if(filter_text === undefined || filter_text === null) {
-			filter_text = '';
-		}
-		filter_text += '';
-
-		// Filter only if text was passed in
-		if(filter_text.length) {
-			var filter_function = getConfigOption.call(this, 'filter_function');
-
-			if(typeof filter_function !== 'function') {
-				throw new Error('Invalid filter function: ' + filter_function);
+	function defaultSortFunction(a, b) {
+		if(a.text !== b.text) {
+			// Empty values should appear at the top
+			if(a.text === '') {
+				return -1;
 			}
 
-			filtered_option_array = filter_function(filter_text, option_array);
-		}
-		// Otherwise, reset the filtered options to the full option array
-		else {
-			for(var i = 0; i < option_array.length; ++i) {
-				var option = option_array[i];
-				option.highlight_text = option.text;
-			}
+			return a.text < b.text ? -1 : 1;
 		}
 
-		return filtered_option_array;
+		return a.value < b.value ? -1 : 1;
 	}
 
 	/**
@@ -1208,12 +1461,18 @@
 
 	/**
 	 * Gets all selected values of a select
-	 * @return {Array} An array of selected values
+	 * @param  {Object} element The SwiftBox element
+	 * @return {Array}
 	 */
-	function getValues() {
-		var current_indexes = getSelectedIndexes.call(this);
-		var option_array    = getOptionArray.call(this);
+	function getValues(element) {
+		element             = normalizeElementArray(element)[0];
+		var current_indexes = getSelectedIndexes(element);
+		var option_array    = getOptionArray(element);
 		var values          = [];
+
+		if(!option_array) {
+			return [];
+		}
 
 		for(var i = 0; i < current_indexes.length; ++i) {
 			var index  = current_indexes[i];
@@ -1229,47 +1488,107 @@
 
 	/**
 	 * Sets the selected values of a select
+	 * @param {Array}        elements       The SwiftBox elements
 	 * @param {String|Array} indexes        A value or array of values to select
 	 * @param {Boolean}      trigger_change Set to true to trigger a change event if the values have changed
 	 */
-	function setValues(values, trigger_change) {
+	function setValues(elements, values, trigger_change) {
+		elements = normalizeElementArray(elements);
+
 		if(!(values instanceof Array)) {
 			values = [values];
 		}
 
-		$(this).each(function() {
-			var option_value_map = getOptionValueMap.call(this);
+		// Remove undefined/null values
+		var clean_values = [];
+		for(var i = 0; i < values.length; ++i) {
+			var value = values[i];
+
+			if(value !== undefined && value !== null) {
+				clean_values.push(value);
+			}
+		}
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element          = elements[i];
+			var option_value_map = getOptionValueMap(element);
 			var indexes          = [];
 
-			for(var i = 0; i < values.length; ++i) {
-				var value = values[i];
-				var index = option_value_map[value];
-
-				if(index !== undefined) {
-					indexes.push(index);
-				}
+			// If there are no options, store the attempted values so we can try
+			// to set them in the future when options are defined
+			var attempted_values = '';
+			if(!option_value_map && clean_values.length) {
+				attempted_values = JSON.stringify(clean_values);
 			}
+			element.setAttribute('data-swift-box-attempted-values', attempted_values);
 
-			setSelectedIndexes.call(this, indexes, trigger_change);
-		});
+			if(option_value_map) {
+				for(var j = 0; j < clean_values.length; ++j) {
+					var value = clean_values[j];
+					var index = option_value_map[value];
+
+					if(index !== undefined) {
+						indexes.push(index);
+					}
+				}
+
+				setSelectedIndexes(element, indexes, trigger_change);
+			}
+		}
+	}
+
+	/**
+	 * Returns if a select has a specific value in its options
+	 * @param  {Object}  element The SwiftBox element
+	 * @param  {String}  value The value to check for
+	 * @return {Boolean}
+	 */
+	function hasValue(element, value) {
+		var option_value_map = getOptionValueMap(element);
+
+		if(option_value_map && option_value_map[value] !== undefined) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
 	 * Gets all selected indexes of a select
-	 * @return {Array} An array of selected indexes
+	 * @param  {Object} element The SwiftBox element
+	 * @return {Array}
 	 */
-	function getSelectedIndexes() {
-		var indexes = $(this).data('swift-box-indexes') || [];
+	function getSelectedIndexes(element) {
+		element     = normalizeElementArray(element)[0];
+		var indexes = [];
 
-		return indexes.slice(0);
+		var tmp_indexes = element && element.getAttribute('data-swift-box-indexes');
+		if(tmp_indexes) {
+			tmp_indexes = tmp_indexes.split(',');
+
+			for(var i = 0; i < tmp_indexes.length; ++i) {
+				var index = +tmp_indexes[i];
+
+				if(isNaN(index)) {
+					continue;
+				}
+
+				indexes.push(index);
+			}
+		}
+
+		return indexes;
 	}
 
 	/**
 	 * Sets the selected indexes of a select
+	 * @param {Array}        elements       The SwiftBox elements
 	 * @param {Number|Array} indexes        An index or array of indexes to select
 	 * @param {Boolean}      trigger_change Set to true to trigger a change event if the indexes have changed
 	 */
-	function setSelectedIndexes(indexes, trigger_change) {
+	function setSelectedIndexes(elements, indexes, trigger_change) {
+		elements = normalizeElementArray(elements);
+
 		if(indexes === undefined || indexes === null) {
 			indexes = [];
 		}
@@ -1277,34 +1596,39 @@
 			indexes = [indexes];
 		}
 
-		$(this).each(function() {
-			var $this           = $(this);
-			var current_indexes = getSelectedIndexes.call(this);
-			var option_array    = getOptionArray.call(this);
+		var changed_elements = [];
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element         = elements[i];
+			var current_indexes = getSelectedIndexes(element);
+			var option_array    = getOptionArray(element);
 			var new_indexes     = [];
 
-			for(var i = 0; i < indexes.length; ++i) {
-				var index = +indexes[i];
-				if(isNaN(index)) {
-					continue;
+			if(option_array) {
+				for(var j = 0; j < indexes.length; ++j) {
+					var index = +indexes[j];
+
+					if(isNaN(index)) {
+						continue;
+					}
+
+					var option = option_array[index];
+					var valid  = !!option;
+
+					if(valid) {
+						new_indexes.push(index);
+					}
 				}
 
-				var option = option_array[index];
-				var valid  = !!option;
-
-				if(valid) {
-					new_indexes.push(index);
-				}
+				new_indexes.sort();
 			}
 
-			new_indexes.sort();
-
 			// Set the new indexes
-			$this.data('swift-box-indexes', new_indexes);
+			element.setAttribute('data-swift-box-indexes', new_indexes.join(','));
 
 			var text = [];
-			for(var i = 0; i < new_indexes.length; ++i) {
-				var index  = new_indexes[i];
+			for(var j = 0; j < new_indexes.length; ++j) {
+				var index  = new_indexes[j];
 				var option = option_array[index];
 
 				if(option) {
@@ -1312,101 +1636,133 @@
 				}
 			}
 
-			setText.call(this, text.join(', '));
+			setText(element, text.join(', '));
 
 			// Update the hidden inputs to contain the new values
-			var values = getValues.call(this);
-			var name   = $this.attr('data-swift-box-name');
+			var values = getValues(element);
+			var name   = element.getAttribute('data-swift-box-name');
 
-			// Clear the existing hidden inputs
-			var $hidden_input_container = getHiddenInputContainer.call(this);
-			$hidden_input_container.empty();
+			// Get the hidden input container
+			var input_container = element.querySelector('.swift-box-hidden-input-container');
 
-			for(var i = 0; i < values.length; ++i) {
-				var value = values[i];
-
-				// Add a hidden input so values are sent in normal form submissions
-				var $hidden_input = $('<input>')
-										.prop('type', 'hidden')
-										.prop('name', name)
-										.addClass('hidden-input')
-										.val(value)
-										.appendTo($hidden_input_container);
+			// Clear the existing hidden inputs inside the container
+			var first_child;
+			while(first_child = input_container.firstChild) {
+				input_container.removeChild(first_child);
 			}
 
-			if(!isMultiple.call(this)) {
-				getHiddenInputContainer.call(this).val(values[0]);
+			// Make sure there is at least one hidden input
+			var input_count = values.length || 1;
+
+			// Create a hidden input for each value
+			for(var j = 0; j < input_count; ++j) {
+				var input   = hidden_input.cloneNode(true);
+				input.name  = name;
+				input.value = values[j];
+
+				input_container.appendChild(input);
 			}
 
 			// Trigger a change if the indexes have changed
 			if(trigger_change) {
-				for(var i = 0; i < new_indexes.length; ++i) {
-					if(new_indexes[i] !== current_indexes[i]) {
-						$(this).trigger('change').trigger('swift-box-change');
+				for(var j = 0; j < new_indexes.length; ++j) {
+					if(new_indexes[j] !== current_indexes[j]) {
+						changed_elements.push(element);
 						break;
 					}
 				}
 			}
-		});
+		}
+
+		// Trigger any change events
+		if(changed_elements.length) {
+			$(changed_elements).trigger('change');
+		}
 	}
 
 	/**
 	 * Gets the display text of a select
-	 * @return {Object} A jQuery collection containing the element
+	 * @param  {Object} element The SwiftBox element
+	 * @return {String}
 	 */
-	function getText() {
-		return getTextElement.call(this).text();
+	function getText(element) {
+		var text_element = getElementCache(element).text;
+
+		if(text_element) {
+			return text_element[textContent];
+		}
+
+		return '';
 	}
 
 	/**
 	 * Sets the display text of a select
-	 * @return {Object} A jQuery collection containing the element
+	 * @param {Object} elements The SwiftBox elements
+	 * @param {String} text     The text to set
 	 */
-	function setText(text) {
-		return getTextElement.call(this).text(text);
+	function setText(elements, text) {
+		elements = normalizeElementArray(elements);
+
+		// Normalize the text
+		if(text === undefined || text === null) {
+			text = '';
+		}
+		text += '';
+
+		for(var i = 0; i < elements.length; ++i) {
+			var text_element = getElementCache(elements[i]).text;
+
+			if(text_element) {
+				text_element[textContent] = text;
+			}
+		}
 	}
 
 	/**
 	 * Focuses a select
-	 * @return {Object} A jQuery collection containing the element
+	 * @param {Object} element The SwiftBox element
 	 */
-	function focus() {
-		return getContainer.call(this).focus();
+	function focus(element) {
+		var container_element = getElementCache(element).container;
+
+		if(container_element) {
+			container_element.focus();
+		}
 	}
 
 	/**
 	 * Blurs a select
-	 * @return {Object} A jQuery collection containing the element
+	 * @param {Object} element The SwiftBox element
 	 */
-	function blur() {
-		return getContainer.call(this).blur();
+	function blur(element) {
+		var container_element = getElementCache(element).container;
+
+		if(container_element) {
+			container_element.blur();
+		}
 	}
 
 	/**
-	 * Gets the container element within a select
-	 * @return {Object} A jQuery collection containing the element
+	 * Marks a select as focused
+	 * @param {Object} element The SwiftBox element
 	 */
-	function getContainer() {
-		return findInShadowRoot.call(this, '.container');
+	function addFocusClass(element) {
+		var $element = $(element);
+
+		$element.addClass('focus');
+		$(getElementCache(element).container).addClass('focus');
 	}
 
 	/**
-	 * Gets the text element within a select
-	 * @return {Object} A jQuery collection containing the element
+	 * Unmarks a select as focused
+	 * @param {Object} element The SwiftBox element
 	 */
-	function getTextElement() {
-		return findInShadowRoot.call(this, '.text');
-	}
+	function removeFocusClass(element) {
+		var $element = $(element);
 
-	/**
-	 * Gets the hidden input within a select
-	 * The hidden input is used for traditional form submission
-	 * @return {Object} A jQuery collection containing the element
-	 */
-	function getHiddenInputContainer() {
-		return $(this).find('.hidden-input-container');
+		$element.removeClass('focus');
+		$(getElementCache(element).container).removeClass('focus');
 	}
-
 
 	// =========================================================================
 	// Shadow Root Manipulation
@@ -1414,271 +1770,247 @@
 
 	/**
 	 * Creates a shadow root using a template
-	 * @param  {Object} $template A template element
-	 * @return {Object}           A jQuery collection containing the created shadow root
+	 * @param  {Object} element  The SwiftBox element
+	 * @param  {Object} template An element to be used as a template
 	 */
-	function createShadowRoot($template) {
-		var $this = $(this);
-		$template = $($template);
+	function createShadowRoot(element, template) {
+		var root;
 
-		// Create the shadow root
 		if(supports.components) {
-			var element = $this.get(0);
-			var method  = element.createShadowRoot || element.webkitCreateShadowRoot;
-			var $root   = $(method.call(element));
+			root = (element.createShadowRoot || element.webkitCreateShadowRoot).call(element);
 		}
-		// Create the shadow root element
 		else {
-			var $root = $('<div class="swift-box-shadow-root"></div>');
+			root = shadow_root_shim.cloneNode(true);
+			element.appendChild(root);
 		}
 
 		// Append the template to the root
-		$root.append($template.clone())
-		$root.appendTo($this);
+		root.appendChild(template.cloneNode(true));
 
-		return $root;
-	}
-
-	/**
-	 * Returns the shadow root of an element
-	 * @return {Object} A jQuery collection of the found shadow roots
-	 */
-	function getShadowRoot() {
-		var $this = $(this);
-
-		if(supports.components) {
-			var roots = [];
-			for(var i = 0; i < $this.length; ++i) {
-				var element = $this.get(i);
-				roots.push(element.shadowRoot || element.webkitShadowRoot);
-			}
-			return $(roots);
-		}
-
-		var shadow_root = $this.find('.swift-box-shadow-root');
-		return shadow_root;
-	}
-
-	/**
-	 * Finds an element within a shadow root
-	 * @param  {String} selector A CSS selector
-	 * @return {Object}          A jQuery collection of the found elements
-	 */
-	function findInShadowRoot(selector) {
-		var $roots = getShadowRoot.call(this);
-
-		var $elements = $();
-
-		for(var i = 0; i < $roots.length; ++i) {
-			var root = $roots.get(i);
-
-			$elements = $elements.add($(root).find(selector));
-		}
-		return $elements;
+		return root;
 	}
 
 	// =========================================================================
-	// jQuery Plugin
+	// Expose methods
 	// =========================================================================
-	var methods = {
-		initialize: function() {
-			return initialize.apply(this, arguments);
-		},
+	window.SwiftBox = SwiftBox;
 
-		config: function(option, value) {
-			if(!option) {
-				return this;
+	SwiftBox.setDefaultConfig = setDefaultConfig;
+
+	SwiftBox.config = function(elements, option, value) {
+		if(arguments.length <= 1) {
+			return $.extend(true, {}, getConfig(elements));
+		}
+
+		// If option is an object, we must be setting multiple config options at once
+		if(typeof option === 'object') {
+			setConfig(elements, option);
+		}
+		// If there are only two arguments, we must be getting an option
+		else if(arguments.length === 2) {
+			return getConfigOption(elements, option);
+		}
+		// Otherwise, we are setting a single option
+		else {
+			var config_object = {}
+			config_object[option] = value;
+
+			setConfig(elements, config_object);
+		}
+
+		return elements;
+	};
+
+	SwiftBox.options = function(elements) {
+		if(arguments.length <= 1) {
+			return $.extend(true, [], getOptionArray(elements));
+		}
+
+		setOptionArray.apply(null, arguments);
+		return elements;
+	};
+
+	SwiftBox.addOptions = function(elements) {
+		addOptionArray.apply(null, arguments);
+
+		return elements;
+	};
+
+	SwiftBox.removeOptions = function(elements) {
+		removeOptionArray.apply(null, arguments);
+
+		return elements;
+	};
+
+	SwiftBox.showOptions = function(elements) {
+		showOptions.apply(null, arguments);
+
+		return elements;
+	};
+
+	SwiftBox.filterOptions = function(elements) {
+		filterOptions.apply(null, arguments);
+
+		return elements;
+	};
+
+	SwiftBox.hideOptions = function(elements) {
+		hideOptions.apply(null, arguments);
+
+		return elements;
+	};
+
+	SwiftBox.value = function(elements) {
+		if(arguments.length <= 1) {
+			var values = getValues(elements);
+
+			// For single selects, convert the value array to a single value
+			if(!isMultiple(elements)) {
+				values = values[0] || "";
 			}
 
-			// If option is an object, we must be setting multiple config options at once
-			if(typeof option === 'object') {
-				for(var i in option) {
-					var new_config = $.extend(true, {}, getConfigObject.call(this));
-					setConfigObject.call(this, new_config);
+			return values;
+		}
+
+		setValues.apply(null, arguments);
+		return elements;
+	};
+
+	SwiftBox.hasValue = function(elements) {
+		return hasValue.apply(null, arguments);
+	};
+
+	SwiftBox.selectedIndex = function(elements) {
+		if(arguments.length <= 1) {
+			var current_indexes = getSelectedIndexes(elements);
+
+			if(!isMultiple(elements)) {
+				current_indexes = current_indexes[0];
+
+				if(current_indexes === undefined) {
+					current_indexes = -1;
 				}
-			}
-			// If no arguments were passed. return the entire config object
-			else if(!arguments.length) {
-				return $.extend(true, {}, getConfigObject.call(this));
-			}
-			// If only one argument was passed, we must be getting a config option
-			else if(arguments.length === 1) {
-				getConfigOption.call(this, option);
-			}
-			// If we've made it this far, we must be setting a config option
-			else {
-				setConfigOption.call(this, option, value);
-			}
-
-			return this;
-		},
-
-		options: function() {
-			if(arguments.length) {
-				setOptionArray.apply(this, arguments);
-				return this;
-			}
-
-			var options = $.extend(true, [], getOptionArray.call(this));
-			return options;
-		},
-
-		setOptions: function() {
-			setOptionArray.apply(this, arguments);
-			return this;
-		},
-
-		addOptions: function() {
-			addOptionArray.apply(this, arguments);
-			return this;
-		},
-
-		removeOptions: function() {
-			removeOptionArray.apply(this, arguments);
-			return this;
-		},
-
-		getOptions: function() {
-			var options = $.extend(true, [], getOptionArray.call(this));
-			return options;
-		},
-
-		showOptions: function() {
-			showOptions.apply(this);
-			return this;
-		},
-
-		filterOptions: function() {
-			filterOptions.apply(this, arguments);
-			return this;
-		},
-
-		hideOptions: function() {
-			hideOptions();
-			return this;
-		},
-
-		value: function() {
-			if(arguments.length) {
-				setValues.apply(this, arguments);
-				return this;
-			}
-
-			var values = getValues.call(this);
-
-			// For single selects, convert the value array to a single value
-			if(!isMultiple.call(this)) {
-				values = values[0] || "";
-			}
-
-			return values;
-		},
-
-		setValue: function(value) {
-			setValues.apply(this, value);
-			return this;
-		},
-
-		getValue: function() {
-			var values = getValues.call(this);
-
-			// For single selects, convert the value array to a single value
-			if(!isMultiple.call(this)) {
-				values = values[0] || "";
-			}
-
-			return values;
-		},
-
-		selectedIndex: function() {
-			if(arguments.length) {
-				setSelectedIndexes.apply(this, arguments);
-				return this;
-			}
-
-			var current_indexes = getSelectedIndexes.call(this);
-
-			if(!isMultiple.call(this)) {
-				return current_indexes[0] || -1;
 			}
 
 			return current_indexes;
-		},
-
-		text: function() {
-			if(arguments.length) {
-				setText.apply(this, arguments);
-				return this;
-			}
-
-			return getText.call(this);
-		},
-
-		focus: function() {
-			focus.call(this);
-			return this;
-		},
-
-		blur: function() {
-			blur.call(this);
-			return this;
 		}
+
+		setSelectedIndexes.apply(null, arguments);
+		return elements;
 	};
 
+	SwiftBox.text = function(elements) {
+		if(arguments.length <= 1) {
+			return getText(elements);
+		}
+
+		setText.apply(null, arguments);
+		return elements;
+	};
+
+	SwiftBox.focus = function(elements) {
+		focus.apply(null, arguments);
+
+		return elements;
+	};
+
+	SwiftBox.blur = function(elements) {
+		blur.apply(null, arguments);
+
+		return elements;
+	};
+
+	/**
+	 * jQuery plugin function
+	 * @return {Object} The jQuery collection the function was called on
+	 */
 	$.fn.swiftbox = function() {
-		var args      = Array.prototype.slice.call(arguments, 0);
-		var method    = args.shift();
-		var $elements = $(this);
+		var args = Array.prototype.slice.call(arguments, 0);
 
-		// If no method was passed, just initialize
-		if(method === undefined || typeof method === 'object') {
-			return initialize.apply($elements, arguments);
-		}
-		// Otherwise, initialize with the default configuration
-		else {
-			$elements = initialize.call($elements);
+		// Initialize if the first argument is undefined or an object
+		if(args[0] === undefined || typeof args[0] === 'object') {
+			args.unshift(this);
+
+			return $(SwiftBox.apply(null, args));
 		}
 
-		// Attempt to call the method
-		if(methods[method]) {
-			return methods[method].apply($elements, args);
+		// Determine the method to be called
+		var method = args.shift();
+
+		if(typeof SwiftBox[method] !== 'function') {
+			throw new Error('Invalid SwiftBox method: ' + method);
 		}
 
-		throw new Error('Invalid SwiftBox method: ' + method);
+		// Add the elements as the first argument
+		args.unshift($(SwiftBox(this)));
+
+		// Call the method
+		return SwiftBox[method].apply(null, args);
 	};
 
 	// Extend the :input pseudo-selector
 	var jquery_input_selector = $.expr[':'].input;
+
 	$.expr[':'].input = function(element) {
 		var $element = $(element);
 
-		// Return true if the element matches the original selector
+		// If the element matches the original :input selector
 		if(jquery_input_selector(element)) {
-			return !$element.closest('swift-box').length
+			// Make sure the element is not contained within the SwiftBox
+			return !$element.closest('swift-box').length;
 		}
 
-		// Otherwise, determine if the element is a select
 		return $element.is('swift-box');
 	};
 
+	// Map properties to specific jQuery functions
+	var jquery_functions = {
+		value : $.fn.val,
+		text  : $.fn.text
+	}
+
 	// Extend the $.val method
-	var jquery_val = $.fn.val;
-	$.fn.val = function(value) {
-		// If no value is passed in, return the value of the first element
-		if(value === undefined) {
+	$.fn.val = function() {
+		return prop.call(this, 'value', arguments);
+	};
+
+	// Extend the $.val method
+	$.fn.text = function() {
+		return prop.call(this, 'text', arguments);
+	};
+
+	function prop(property, args) {
+		var jquery_function = jquery_functions[property];
+
+		// If no arguments are passed in, act only on the first element
+		if(!args.length) {
 			var $first = this.first();
 
+			// Get the value for swift-boxes
 			if($first.is('swift-box')) {
-				return $first.swiftbox('value');
+				return $first.swiftbox(property);
 			}
 
-			return jquery_val.call(this);
+			// Get the value for all other elements
+			return jquery_function.call($first);
 		}
 
-		// Otherwise, set the value on all elements
-		jquery_val.call(this.not('swift-box'), value);
-		this.filter('swift-box').swiftbox('value', value);
+		// Set the property for normal elements
+		var $other_elements = this.not('swift-box');
+		if($other_elements.length) {
+			jquery_function.apply($other_elements, args);
+		}
+
+		// Set the property via the plugin
+		var $swiftboxes = this.filter('swift-box');
+		if($swiftboxes.length) {
+			// Add the property as the first argument to pass to the plugin
+			var plugin_args = Array.prototype.slice.call(args, 0);
+			plugin_args.unshift(property);
+
+			$.fn.swiftbox.apply($swiftboxes, plugin_args);
+		}
 
 		return this;
-	};
+	}
 }(jQuery, window));
