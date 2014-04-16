@@ -59,6 +59,8 @@ swift-box[disabled] {
 .swift-box .container {
 	display: table;
 	table-layout: fixed;
+	border-spacing: 0;
+	empty-cells: show;
 	width: 100%;
 	height: 100%;
 	max-height: 100%;
@@ -161,9 +163,9 @@ swift-box-options {
 .swift-box-options .container {
 	position: fixed;
 	border: 1px solid #AAA;
-	outline: 1px solid #0AF;
 	background-color: #FFF;
-	box-shadow: 2px 2px 2px rgba(0, 0, 0, .2);
+	box-shadow: 0 0 0 1px #0AF,
+				3px 3px 3px rgba(0, 0, 0, .2);
 }
 
 .swift-box-options .input-container {
@@ -193,19 +195,22 @@ swift-box-options {
 
 .swift-box-options .multiple .helpers {
 	display: block;
-	padding: .2em 0;
+	padding: .3em 0;
 }
 
 .swift-box-options .multiple .helper {
 	display: inline-block;
 	color: #00F;
-	font-size: .8em;
-	text-decoration: underline;
+	font-size: .9em;
 	cursor: pointer;
 }
 
+.swift-box-options .multiple .helper:hover {
+	text-decoration: underline;
+}
+
 .swift-box-options .multiple .helper + .helper {
-	margin-left: .2em;
+	margin-left: .3em;
 }
 
 .swift-box-options .scroll {
