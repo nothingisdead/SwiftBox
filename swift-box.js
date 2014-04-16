@@ -28,7 +28,7 @@
 	var textContent = document.textContent !== undefined ? 'textContent' : 'innerText';
 
 	// Get the CSS url so shadow DOM can import the stylesheet
-	var import_style_href = window.swiftbox_style_href;
+	var import_style_href = window.swift_box_style_href;
 
 	// Feature support detection
 	var test_element  = document.createElement('div');
@@ -85,6 +85,9 @@
 	// Stores the currently active select
 	var active_select = null;
 
+	// Stores all scrollable parents so we can bind to their scroll event
+	var scrollable_parents = null;
+
 	// Stores the current list of filtered options
 	var filtered_option_array = [];
 
@@ -138,8 +141,8 @@
 			return {};
 		}
 
-		if(element.__swiftbox__ === undefined) {
-			element.__swiftbox__ = element_cache.length;
+		if(element.__swift_box__ === undefined) {
+			element.__swift_box__ = element_cache.length;
 
 			var shadow_root;
 
@@ -157,7 +160,7 @@
 			});
 		}
 
-		return element_cache[element.__swiftbox__];
+		return element_cache[element.__swift_box__];
 	}
 
 	// =========================================================================
@@ -242,10 +245,10 @@
 	// =========================================================================
 
 	// Create the option list - Use document.createElement for compatibility
-	var swiftbox_options = document.createElement('swift-box-options');
+	var swift_box_options = document.createElement('swift-box-options');
 
 	// Create the shadow root for the option list
-	var options_shadow_root = createShadowRoot(swiftbox_options, options_template_dom);
+	var options_shadow_root = createShadowRoot(swift_box_options, options_template_dom);
 
 	// Store some references to important option list elements
 	var $option_container = $('.container', options_shadow_root);
@@ -271,14 +274,19 @@
 		var value      = this.value;
 		var last_value = this.getAttribute('data-last-text');
 
-		if(value !== last_value) {
+		// Determine if the filter text has changed
+		// Backspace is checked specifically to allow the user to jump to the
+		// top of the list even if there is no filter text
+		var filter_changed = value !== last_value || e.which === 8;
+
+		if(filter_changed) {
 			filterOptions(value, true);
 
 			this.setAttribute('data-last-text', value);
 		}
 	});
 
-	// Click the check all button selects all visible options on multi-selects
+	// Clicking the "check all" button selects all visible options on multi-selects
 	$option_all.on('click', function() {
 		if(isDisabled(active_select)) {
 			return;
@@ -338,6 +346,11 @@
 			return;
 		}
 
+		// Highlight the option
+		var filtered_index = this.getAttribute('data-filtered-index');
+		highlightOption(filtered_index);
+
+		// Select the option
 		selectHighlightedOption();
 
 		// For single selects, hide the options when once is clicked
@@ -387,7 +400,7 @@
 		var show  = false;
 
 		if(e.type === 'keypress') {
-			show = which >= 32;
+			show = which >= 32 || which === 8;
 		}
 		else {
 			show = which === 40;
@@ -408,7 +421,7 @@
 			showOptions(this);
 			e.preventDefault();
 
-			if(e.type === 'keypress') {
+			if(e.type === 'keypress' && which >= 32) {
 				var character = String.fromCharCode(which);
 				$option_input.val(character);
 			}
@@ -432,7 +445,7 @@
 			else {
 				++index;
 			}
-			highlightOption(index);
+			highlightOption(index, true);
 
 			// Prevent the text cursor from jumping to home/end
 			e.preventDefault();
@@ -517,12 +530,10 @@
 	});
 
 	// Scrolling or resizing the window repositions the option list
-	$window.on('scroll resize', function() {
-		if(!active_select) {
-			return;
+	$window.on('resize', function() {
+		if(active_select) {
+			positionOptions();
 		}
-
-		positionOptions();
 	});
 
 	// =========================================================================
@@ -686,28 +697,6 @@
 		return config && config[option];
 	}
 
-	/**
-	 * Determines if a select is a multi-select
-	 * @param  {Object}  element The SwiftBox element
-	 * @return {Boolean}
-	 */
-	function isMultiple(element) {
-		element = normalizeElementArray(element)[0];
-
-		return element && element.hasAttribute('multiple');
-	}
-
-	/**
-	 * Determines if a select is disabled
-	 * @param  {Object}  element The SwiftBox element
-	 * @return {Boolean}
-	 */
-	function isDisabled(element) {
-		element = normalizeElementArray(element)[0];
-
-		return element && element.hasAttribute('disabled');
-	}
-
 	// =========================================================================
 	// Option Array Manipulation
 	// =========================================================================
@@ -754,38 +743,19 @@
 			}
 		}
 
-		// Get the width based on the options
-		var option_width = calculateWidth(elements, normalized_option_array.array);
+		// Set the option hash on the elements
+		setOptionHash(elements, option_array_index);
+	}
 
-		for(var i = 0; i < elements.length; ++i) {
-			var element = elements[i];
+	/**
+	 * Gets the option array on a select
+	 * @param  {Object} element The SwiftBox element
+	 * @return {Array}
+	 */
+	function getOptionArray(element) {
+		var hash = getOptionHash(element);
 
-			// Get any existing values
-			var values = getValues(element);
-
-			// Get any attempted values
-			var attempted_values = element.getAttribute('data-swift-box-attempted-values');
-
-			// Store the index of the option array on the element
-			element.setAttribute('data-swift-box-options', option_array_index);
-
-			// If values were found, set them
-			if(values.length) {
-				setValues(element, values);
-			}
-			// If we previously tried to set values without any options, try again
-			else if(attempted_values) {
-				attempted_values = JSON.parse(attempted_values);
-				setValues(element, attempted_values);
-			}
-			// Otherwise, single selects default to the first option
-			else if(!isMultiple(element)) {
-				setSelectedIndexes(element, 0);
-			}
-
-			// Set the width of the element to match the options
-			element.style.width = option_width + 'px';
-		}
+		return option_arrays[hash];
 	}
 
 	/**
@@ -818,7 +788,7 @@
 		elements = normalizeElementArray(elements);
 
 		if(!(value_array instanceof Array)) {
-			throw new Error('Invalid value array: ' + value_array);
+			value_array = [value_array];
 		}
 
 		// Convert the values to strings
@@ -848,6 +818,67 @@
 	}
 
 	/**
+	 * Sets the option hash on SwiftBoxes
+	 * @param {Array}  elements The SwiftBox elements
+	 * @param {Number} hash     The hash to set
+	 */
+	function setOptionHash(elements, hash) {
+		elements = normalizeElementArray(elements);
+		var option_array = option_arrays[hash];
+
+		if(hash === undefined || hash === null) {
+			hash = '';
+		}
+		else if(!option_array) {
+			throw new Error('Invalid option hash: ' + hash);
+		}
+
+		// Calculate the width of the options
+		var option_width = calculateWidth(elements, option_array);
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element = elements[i];
+
+			// Get any existing values
+			var values = getValues(element);
+
+			// Get any attempted values
+			var attempted_values = element.getAttribute('data-swift-box-attempted-values');
+
+			// Set the new option hash
+			element.setAttribute('data-swift-box-options', hash);
+
+			// If values were found, set them
+			if(values.length) {
+				setValues(element, values);
+			}
+			// If we previously tried to set values without any options, try again
+			else if(attempted_values) {
+				attempted_values = JSON.parse(attempted_values);
+				setValues(element, attempted_values);
+			}
+			// Otherwise, single selects default to the first option
+			else if(!isMultiple(element)) {
+				setSelectedIndexes(element, 0);
+			}
+
+			// Set the width of the element to match the options
+			element.style.width = option_width + 'px';
+		}
+	}
+
+	/**
+	 * Gets the option hash on a SwiftBox
+	 * @param  {Array}  element The SwiftBox element
+	 * @return {Number}         The option hash
+	 */
+	function getOptionHash(element) {
+		element = normalizeElementArray(element)[0];
+
+		return element && element.getAttribute('data-swift-box-options');
+	}
+
+	/**
 	 * Converts an array of options into an optimized array for internal use
 	 * @param  {Array}   option_array      The options to add
 	 * @param  {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the options by text. Passing null will maintain the existing order.
@@ -865,7 +896,6 @@
 
 		var array    = [];
 		var map      = {};
-		var is_array = option_array instanceof Array;
 		var index    = 0;
 
 		for(var key in option_array) {
@@ -877,7 +907,7 @@
 			var value;
 			var text;
 
-			if(is_array) {
+			if(typeof option === 'object') {
 				value = option.value;
 				text  = option.text;
 			}
@@ -920,7 +950,7 @@
 		}
 
 		// Sort the option array if necessary
-		if(sort_function !== null) {
+		if(sort_function !== null && sort_function !== false) {
 			// If undefined or true is passed in as the sort function, use the default sort
 			if(sort_function === undefined || sort_function === true) {
 				sort_function = defaultSortFunction;
@@ -940,6 +970,36 @@
 			array : array,
 			map   : map
 		};
+	}
+
+	/**
+	 * Finds an already normalized option array matching a given option array
+	 * @param  {Array}  option_array The array of options
+	 * @return {Number}              The index of the matching option array with the array of normalized option arrays
+	 */
+	function findOptionArray(option_array) {
+		// Yes, a loop label
+		option_array_loop:
+		for(var i = 0; i < option_arrays.length; ++i) {
+			var existing_option_array = option_arrays[i];
+
+			if(option_array.length !== existing_option_array.length) {
+				continue;
+			}
+
+			for(var j = 0; j < option_array.length; ++j) {
+				var option = option_array[j];
+				var existing_option = existing_option_array[j];
+
+				if(option.value !== existing_option.value || option.text !== existing_option.text) {
+					continue option_array_loop;
+				}
+			}
+
+			return i;
+		}
+
+		return -1;
 	}
 
 	/**
@@ -964,29 +1024,22 @@
 	}
 
 	/**
-	 * Gets the option array on a select
-	 * @param  {Object} element The SwiftBox element
-	 * @return {Array}
-	 */
-	function getOptionArray(element) {
-		element   = normalizeElementArray(element)[0];
-		var index = element && element.getAttribute('data-swift-box-options');
-
-		return option_arrays[index];
-	}
-
-	/**
 	 * Shows the list of options for a select
 	 * @param {Object} element The SwiftBox element
 	 */
 	function showOptions(element) {
 		element = normalizeElementArray(element)[0];
 
+		// If the element is already active, we're done
+		if(active_select === element) {
+			return;
+		}
+
 		// Ensure the option container is within the body
 		// This is done here because the body element may not have existed previously
 		var main_element = document.body || document.documentElement;
-		if(swiftbox_options.parentNode !== main_element) {
-			main_element.appendChild(swiftbox_options);
+		if(swift_box_options.parentNode !== main_element) {
+			main_element.appendChild(swift_box_options);
 		}
 
 		// Remove the focus class on the currently active select
@@ -1016,12 +1069,29 @@
 		positionOptions();
 
 		// Highlight the currently selected option
-		var current_indexes = getSelectedIndexes(element);
-		var highlight_index = current_indexes[0] || 0;
-		highlightOption(highlight_index, true);
+		var selected_indexes = getSelectedIndexes(element);
+		var highlight_index  = selected_indexes[0] || 0;
+		highlightOption(highlight_index, true, true);
 
 		// Focus on the filter input
 		$option_input.focus();
+
+		// Bind to each parent's scroll event to reposition the options
+		// Scroll events do not bubble, so I think this is the only solution
+		$(scrollable_parents).off('.swift-box-scroll-event');
+		scrollable_parents = [];
+
+		var parent = element;
+
+		while((parent = parent.parentNode)) {
+			if(parent.offsetHeight > parent.scrollHeight || parent.offsetWidth > parent.scrollWidth) {
+				scrollable_parents.push(parent);
+			}
+		}
+
+		$(scrollable_parents).on('scroll.swift-box-scroll-event', function() {
+			positionOptions();
+		});
 	}
 
 	/**
@@ -1146,7 +1216,7 @@
 		});
 
 		// Highlight the first match
-		highlightOption(0, true);
+		highlightOption(0, true, true);
 	}
 
 	/**
@@ -1176,7 +1246,7 @@
 		var option_height = getOptionHeight();
 
 		// Get the currently selected indexes
-		var current_indexes = getSelectedIndexes(active_select);
+		var selected_indexes = getSelectedIndexes(active_select);
 
 		// Calculate the position of the visible options within the scrollable area
 		var top = scroll_top - (scroll_top % option_height);
@@ -1203,7 +1273,7 @@
 				.attr('data-filtered-index', filtered_index)
 				.removeClass('swift-box-hidden')
 				.toggleClass('highlight', filtered_index === highlighted_option_index)
-				.toggleClass('selected', indexOf(current_indexes, option_index) !== -1)
+				.toggleClass('selected', indexOf(selected_indexes, option_index) !== -1)
 					.find('.text')
 					.html(option.highlight_text);
 		}
@@ -1217,6 +1287,9 @@
 	function hideOptions() {
 		// Hide the option list
 		$option_container.addClass('swift-box-hidden');
+
+		// Unbind the scroll events
+		$(scrollable_parents).off('.swift-box-scroll-event');
 
 		if(active_select) {
 			// Remove the focus class from the select
@@ -1232,10 +1305,13 @@
 
 	/**
 	 * Highlights an option in the option list, scrolling to it if needed
-	 * @param  {Number}  index The option index to highlight
-	 * @param  {Boolean} top   Set to true to scroll to where the option is at the top of the list
+	 * @param  {Number}  index  The option index to highlight
+	 * @param  {Boolean} scroll Set to true to scroll the option into view
+	 * @param  {Boolean} top    Set to true to scroll the option to the top of the list
 	 */
-	function highlightOption(index, top) {
+	function highlightOption(index, scroll, top) {
+		scroll = scroll || top;
+
 		var scroll_height = $option_scroll.height();
 		var option_height = getOptionHeight();
 
@@ -1243,18 +1319,22 @@
 		index = Math.max(index, 0);
 		index = Math.min(index, filtered_option_array.length -1);
 
-		var scroll_top = $option_scroll.scrollTop();
-		var option_top = index * option_height;
+		var scroll_top;
 
-		if(option_top < scroll_top) {
-			scroll_top = option_top;
-		}
-		else if(scroll_top + scroll_height <= option_top) {
-			if(top) {
+		if(scroll) {
+			scroll_top     = $option_scroll.scrollTop();
+			var option_top = index * option_height;
+
+			if(option_top < scroll_top) {
 				scroll_top = option_top;
 			}
-			else {
-				scroll_top = option_top - scroll_height + option_height;
+			else if(scroll_top + scroll_height <= option_top) {
+				if(top) {
+					scroll_top = option_top;
+				}
+				else {
+					scroll_top = option_top - scroll_height + option_height;
+				}
 			}
 		}
 
@@ -1271,27 +1351,27 @@
 			return;
 		}
 
-		var index       = option.index;
-		var new_indexes = index;
+		var index            = option.index;
+		var selected_indexes = index;
 
 		// Multiple selects need to toggle the selected option based on if it
 		// already exists within the selected options or not
 		if(isMultiple(active_select)) {
-			var new_indexes = getSelectedIndexes(active_select);
-			var exists = indexOf(new_indexes, index);
+			var selected_indexes = getSelectedIndexes(active_select);
+			var exists           = indexOf(selected_indexes, index);
 
 			// If the option isn't selected, select it
 			if(exists === -1) {
-				new_indexes.push(index);
+				selected_indexes.push(index);
 			}
 			// Otherwise, deselect it
 			else {
-				new_indexes.splice(exists, 1);
+				selected_indexes.splice(exists, 1);
 			}
 		}
 
 		// Set the new selected indexes
-		setSelectedIndexes(active_select, new_indexes, true);
+		setSelectedIndexes(active_select, selected_indexes, true);
 	}
 
 	/**
@@ -1323,10 +1403,9 @@
 	 * @return {Object|null}         The value map or null if no options are set
 	 */
 	function getOptionValueMap(element) {
-		element   = normalizeElementArray(element)[0];
-		var index = element && element.getAttribute('data-swift-box-options');
+		var hash = getOptionHash(element);
 
-		return option_array_value_maps[index];
+		return option_array_value_maps[hash];
 	}
 
 	/**
@@ -1376,40 +1455,10 @@
 		// Add the button's width
 		max_width += $(getElementCache(element).button).outerWidth();
 
-		// Add some extra pixels to account for padding
-		max_width += 10;
+		// Add some extra pixels to account for padding and scrollbars
+		max_width += 20;
 
 		return max_width;
-	}
-
-	/**
-	 * Finds an already normalized option array matching a given option array
-	 * @param  {Array}  option_array The array of options
-	 * @return {Number}              The index of the matching option array with the array of normalized option arrays
-	 */
-	function findOptionArray(option_array) {
-		// Yes, a loop label
-		option_array_loop:
-		for(var i = 0; i < option_arrays.length; ++i) {
-			var existing_option_array = option_arrays[i];
-
-			if(option_array.length !== existing_option_array.length) {
-				continue;
-			}
-
-			for(var j = 0; j < option_array.length; ++j) {
-				var option = option_array[j];
-				var existing_option = existing_option_array[j];
-
-				if(option.value !== existing_option.value || option.text !== existing_option.text) {
-					continue option_array_loop;
-				}
-			}
-
-			return i;
-		}
-
-		return -1;
 	}
 
 	function defaultSortFunction(a, b) {
@@ -1454,6 +1503,27 @@
 		return results;
 	}
 
+	/**
+	 * Determines if a select is a multi-select
+	 * @param  {Object}  element The SwiftBox element
+	 * @return {Boolean}
+	 */
+	function isMultiple(element) {
+		element = normalizeElementArray(element)[0];
+
+		return element && element.hasAttribute('multiple');
+	}
+
+	/**
+	 * Determines if a select is disabled
+	 * @param  {Object}  element The SwiftBox element
+	 * @return {Boolean}
+	 */
+	function isDisabled(element) {
+		element = normalizeElementArray(element)[0];
+
+		return element && element.hasAttribute('disabled');
+	}
 
 	// =========================================================================
 	// Value Manipulation
@@ -1465,17 +1535,17 @@
 	 * @return {Array}
 	 */
 	function getValues(element) {
-		element             = normalizeElementArray(element)[0];
-		var current_indexes = getSelectedIndexes(element);
-		var option_array    = getOptionArray(element);
-		var values          = [];
+		element              = normalizeElementArray(element)[0];
+		var selected_indexes = getSelectedIndexes(element);
+		var option_array     = getOptionArray(element);
+		var values           = [];
 
 		if(!option_array) {
 			return [];
 		}
 
-		for(var i = 0; i < current_indexes.length; ++i) {
-			var index  = current_indexes[i];
+		for(var i = 0; i < selected_indexes.length; ++i) {
+			var index  = selected_indexes[i];
 			var option = option_array[index];
 
 			if(option) {
@@ -1599,10 +1669,10 @@
 		var changed_elements = [];
 
 		for(var i = 0; i < elements.length; ++i) {
-			var element         = elements[i];
-			var current_indexes = getSelectedIndexes(element);
-			var option_array    = getOptionArray(element);
-			var new_indexes     = [];
+			var element          = elements[i];
+			var selected_indexes = getSelectedIndexes(element);
+			var option_array     = getOptionArray(element);
+			var new_indexes      = [];
 
 			if(option_array) {
 				for(var j = 0; j < indexes.length; ++j) {
@@ -1626,6 +1696,7 @@
 			// Set the new indexes
 			element.setAttribute('data-swift-box-indexes', new_indexes.join(','));
 
+			// Update the text
 			var text = [];
 			for(var j = 0; j < new_indexes.length; ++j) {
 				var index  = new_indexes[j];
@@ -1636,7 +1707,8 @@
 				}
 			}
 
-			setText(element, text.join(', '));
+			var text_element = getElementCache(element).text;
+			text_element[textContent] = text.join(', ');
 
 			// Update the hidden inputs to contain the new values
 			var values = getValues(element);
@@ -1658,7 +1730,7 @@
 			for(var j = 0; j < input_count; ++j) {
 				var input   = hidden_input.cloneNode(true);
 				input.name  = name;
-				input.value = values[j];
+				input.value = values[j] || '';
 
 				input_container.appendChild(input);
 			}
@@ -1666,7 +1738,7 @@
 			// Trigger a change if the indexes have changed
 			if(trigger_change) {
 				for(var j = 0; j < new_indexes.length; ++j) {
-					if(new_indexes[j] !== current_indexes[j]) {
+					if(new_indexes[j] !== selected_indexes[j]) {
 						changed_elements.push(element);
 						break;
 					}
@@ -1683,39 +1755,29 @@
 	/**
 	 * Gets the display text of a select
 	 * @param  {Object} element The SwiftBox element
-	 * @return {String}
+	 * @return {String|Array} A string or an array of strings if in multiple mode
 	 */
 	function getText(element) {
-		var text_element = getElementCache(element).text;
+		var element = normalizeElementArray(element)[0];
 
-		if(text_element) {
-			return text_element[textContent];
+		if(!element) {
+			return '';
 		}
 
-		return '';
-	}
+		var selected_indexes = getSelectedIndexes(element);
+		var option_array     = getOptionArray(element);
 
-	/**
-	 * Sets the display text of a select
-	 * @param {Object} elements The SwiftBox elements
-	 * @param {String} text     The text to set
-	 */
-	function setText(elements, text) {
-		elements = normalizeElementArray(elements);
+		var text = [];
+		for(var j = 0; j < selected_indexes.length; ++j) {
+			var index  = selected_indexes[j];
+			var option = option_array[index];
 
-		// Normalize the text
-		if(text === undefined || text === null) {
-			text = '';
-		}
-		text += '';
-
-		for(var i = 0; i < elements.length; ++i) {
-			var text_element = getElementCache(elements[i]).text;
-
-			if(text_element) {
-				text_element[textContent] = text;
+			if(option) {
+				text.push(option.text);
 			}
 		}
+
+		return text;
 	}
 
 	/**
@@ -1842,6 +1904,15 @@
 		return elements;
 	};
 
+	SwiftBox.optionHash = function(elements) {
+		if(arguments.length <= 1) {
+			return getOptionHash(elements);
+		}
+
+		setOptionHash.apply(null, arguments);
+		return elements;
+	};
+
 	SwiftBox.showOptions = function(elements) {
 		showOptions.apply(null, arguments);
 
@@ -1866,7 +1937,7 @@
 
 			// For single selects, convert the value array to a single value
 			if(!isMultiple(elements)) {
-				values = values[0] || "";
+				values = values[0] || '';
 			}
 
 			return values;
@@ -1882,17 +1953,17 @@
 
 	SwiftBox.selectedIndex = function(elements) {
 		if(arguments.length <= 1) {
-			var current_indexes = getSelectedIndexes(elements);
+			var selected_indexes = getSelectedIndexes(elements);
 
 			if(!isMultiple(elements)) {
-				current_indexes = current_indexes[0];
+				selected_indexes = selected_indexes[0];
 
-				if(current_indexes === undefined) {
-					current_indexes = -1;
+				if(selected_indexes === undefined) {
+					selected_indexes = -1;
 				}
 			}
 
-			return current_indexes;
+			return selected_indexes;
 		}
 
 		setSelectedIndexes.apply(null, arguments);
@@ -1900,12 +1971,13 @@
 	};
 
 	SwiftBox.text = function(elements) {
-		if(arguments.length <= 1) {
-			return getText(elements);
+		var text = getText(elements);
+
+		if(!isMultiple(elements)) {
+			return text[0] || '';
 		}
 
-		setText.apply(null, arguments);
-		return elements;
+		return text;
 	};
 
 	SwiftBox.focus = function(elements) {
