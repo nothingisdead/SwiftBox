@@ -154,9 +154,10 @@
 			}
 
 			element_cache.push({
-				container : shadow_root.querySelector('.container'),
-				text      : shadow_root.querySelector('.text'),
-				button    : shadow_root.querySelector('.button')
+				container       : shadow_root.querySelector('.container'),
+				text            : shadow_root.querySelector('.text'),
+				button          : shadow_root.querySelector('.button'),
+				input_container : element.querySelector('.swift-box-hidden-input-container')
 			});
 		}
 
@@ -1707,15 +1708,13 @@
 				}
 			}
 
-			var text_element = getElementCache(element).text;
+			var element_cache = getElementCache(element);
+
+			var text_element = element_cache.text;
 			text_element[textContent] = text.join(', ');
 
-			// Update the hidden inputs to contain the new values
-			var values = getValues(element);
-			var name   = element.getAttribute('data-swift-box-name');
-
 			// Get the hidden input container
-			var input_container = element.querySelector('.swift-box-hidden-input-container');
+			var input_container = element_cache.input_container;
 
 			// Clear the existing hidden inputs inside the container
 			var first_child;
@@ -1723,16 +1722,22 @@
 				input_container.removeChild(first_child);
 			}
 
-			// Make sure there is at least one hidden input
-			var input_count = values.length || 1;
+			var no_inputs = element.hasAttribute('data-no-inputs');
 
-			// Create a hidden input for each value
-			for(var j = 0; j < input_count; ++j) {
-				var input   = hidden_input.cloneNode(true);
-				input.name  = name;
-				input.value = values[j] || '';
+			if(!no_inputs) {
+				// Update the hidden inputs to contain the new values
+				var values      = getValues(element);
+				var name        = element.getAttribute('data-swift-box-name');
+				var input_count = values.length || 1;
 
-				input_container.appendChild(input);
+				// Create a hidden input for each value
+				for(var j = 0; j < input_count; ++j) {
+					var input   = hidden_input.cloneNode(true);
+					input.name  = name;
+					input.value = values[j] || '';
+
+					input_container.appendChild(input);
+				}
 			}
 
 			// Trigger a change if the indexes have changed
