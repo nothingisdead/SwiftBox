@@ -1,5 +1,6 @@
 /*!
  * SwiftBox
+ * A lightweight combobox plugin for jQuery
  * https://github.com/Knotix/SwiftBox/
  *
  * Copyright 2014 Samuel Hodge
@@ -8,11 +9,6 @@
  *
  * @TODO: Add support for components when they become relevant
  */
-
-/**
- * In most cases, jQuery is avoided for performance reasons
- */
-
 (function($, window, undefined) {
 	'use strict';
 
@@ -223,8 +219,9 @@
 								'</div>'
 							].join('')),
 						'</div>',
-						'<div class="none">No Options Found</div>',
 					'</div>',
+
+					'<div class="none">No Options Found</div>',
 				'</div>',
 			'</div>',
 		'</' + template_element + '>'
@@ -1196,7 +1193,7 @@
 		}
 
 		// Show the empty message if no options match the filter
-		$option_scroll.toggleClass('empty', !filtered_option_array.length);
+		$option_container.toggleClass('empty', !filtered_option_array.length);
 
 		// Get some dimensions
 		var option_height        = getOptionHeight();
@@ -1709,9 +1706,10 @@
 			}
 
 			var element_cache = getElementCache(element);
+			var text_element  = element_cache.text;
+			var new_text      = text.join(', ');
 
-			var text_element = element_cache.text;
-			text_element[textContent] = text.join(', ');
+			text_element[textContent] = new_text;
 
 			// Get the hidden input container
 			var input_container = element_cache.input_container;
@@ -1758,11 +1756,48 @@
 	}
 
 	/**
+	 * Sets the display text of a select
+	 * @param  {Object} element The SwiftBox element
+	 * @param  {String} element The text to set
+	 */
+	function setText(elements, text) {
+		var elements = normalizeElementArray(elements);
+
+		if(text === undefined || text === null) {
+			text = '';
+		}
+
+		text += '';
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element = elements[0];
+			var text_element = getElementCache(element).text;
+
+			text_element[textContent] = text;
+		}
+	}
+
+	/**
 	 * Gets the display text of a select
 	 * @param  {Object} element The SwiftBox element
-	 * @return {String|Array} A string or an array of strings if in multiple mode
+	 * @return {String}
 	 */
 	function getText(element) {
+		var element = normalizeElementArray(element)[0];
+
+		if(!element) {
+			return '';
+		}
+
+		return getElementCache(element).text[textContent];
+	}
+
+	/**
+	 * Gets the text based on the selected values
+	 * @param  {Object} element The SwiftBox element
+	 * @return {String|Array}   A string or an array of strings if in multiple mode
+	 */
+	function getValueText(element) {
 		var element = normalizeElementArray(element)[0];
 
 		if(!element) {
@@ -1773,8 +1808,8 @@
 		var option_array     = getOptionArray(element);
 
 		var text = [];
-		for(var j = 0; j < selected_indexes.length; ++j) {
-			var index  = selected_indexes[j];
+		for(var i = 0; i < selected_indexes.length; ++i) {
+			var index  = selected_indexes[i];
 			var option = option_array[index];
 
 			if(option) {
@@ -1976,7 +2011,16 @@
 	};
 
 	SwiftBox.text = function(elements) {
-		var text = getText(elements);
+		if(arguments.length <= 1) {
+			return getText(elements);
+		}
+
+		setText.apply(null, arguments);
+		return elements;
+	};
+
+	SwiftBox.valueText = function(elements) {
+		var text = getValueText(elements);
 
 		if(!isMultiple(elements)) {
 			return text[0] || '';
@@ -2057,37 +2101,29 @@
 	};
 
 	function prop(property, args) {
-		var jquery_function = jquery_functions[property];
-
-		// If no arguments are passed in, act only on the first element
-		if(!args.length) {
-			var $first = this.first();
-
-			// Get the value for swift-boxes
-			if($first.is('swift-box')) {
-				return $first.swiftbox(property);
-			}
-
-			// Get the value for all other elements
-			return jquery_function.call($first);
+		if(!this.length) {
+			return this;
 		}
 
-		// Set the property for normal elements
-		var $other_elements = this.not('swift-box');
-		if($other_elements.length) {
-			jquery_function.apply($other_elements, args);
+		var jquery_function   = jquery_functions[property];
+		var swiftbox_function = SwiftBox[property];
+
+		var $elements         = args.length ? this : this.first();
+		var $others           = $elements.not('swift-box');
+		var $swiftboxes       = $elements.filter('swift-box');
+		var result;
+
+		if($others.length) {
+			result = jquery_function.apply($others, args);
 		}
 
-		// Set the property via the plugin
-		var $swiftboxes = this.filter('swift-box');
 		if($swiftboxes.length) {
-			// Add the property as the first argument to pass to the plugin
-			var plugin_args = Array.prototype.slice.call(args, 0);
-			plugin_args.unshift(property);
+			var swiftbox_args = Array.prototype.slice.call(args, 0);
+			swiftbox_args.unshift($swiftboxes);
 
-			$.fn.swiftbox.apply($swiftboxes, plugin_args);
+			result = swiftbox_function.apply(null, swiftbox_args);
 		}
 
-		return this;
+		return args.length ? this : result;
 	}
 }(jQuery, window));
