@@ -244,15 +244,15 @@ swift-box-options {
 
 .swift-box-options .none {
 	display: none;
+	padding: 4px;
+	line-height: 1.4em;
+	color: #444;
+	font-style: italic;
 	cursor: default;
 }
 
 .swift-box-options .empty .none {
-	padding: 4px;
 	display: block;
-	line-height: 1.4em;
-	color: #444;
-	font-style: italic;
 }
 
 .swift-box-options .option.highlight {
