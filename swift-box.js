@@ -270,7 +270,7 @@
 	// Typing within the filter input filters the options
 	$option_input.on('keyup', function(e) {
 		var value      = this.value;
-		var last_value = this.getAttribute('data-last-text');
+		var last_value = this.getAttribute('data-swift-box-last-text');
 
 		// Determine if the filter text has changed
 		// Backspace is checked specifically to allow the user to jump to the
@@ -280,13 +280,13 @@
 		if(filter_changed) {
 			filterOptions(value, true);
 
-			this.setAttribute('data-last-text', value);
+			this.setAttribute('data-swift-box-last-text', value);
 		}
 	});
 
 	// Clicking the "check all" button selects all visible options on multi-selects
 	$option_all.on('click', function() {
-		if(isDisabled(active_select)) {
+		if(getDisabled(active_select)) {
 			return;
 		}
 
@@ -318,7 +318,7 @@
 
 	// Clicking the clear button clears the selected values
 	$option_clear.on('click', function() {
-		if(isDisabled(active_select)) {
+		if(getDisabled(active_select)) {
 			return;
 		}
 
@@ -334,25 +334,25 @@
 
 	// Hovering over an option highlights it
 	$option_list.on('mouseenter', '.option', function() {
-		var filtered_index = this.getAttribute('data-filtered-index');
+		var filtered_index = this.getAttribute('data-swift-box-filtered-index');
 		highlightOption(filtered_index);
 	});
 
 	// Clicking an option selects it
 	$option_list.on('mouseup', '.option', function(e) {
-		if(e.which !== 1 || isDisabled(active_select)) {
+		if(e.which !== 1 || getDisabled(active_select)) {
 			return;
 		}
 
 		// Highlight the option
-		var filtered_index = this.getAttribute('data-filtered-index');
+		var filtered_index = this.getAttribute('data-swift-box-filtered-index');
 		highlightOption(filtered_index);
 
 		// Select the option
 		selectHighlightedOption();
 
 		// For single selects, hide the options when once is clicked
-		if(!isMultiple(active_select)) {
+		if(!getMultiple(active_select)) {
 			hideOptions();
 		}
 		// Multiple selects remain open
@@ -363,7 +363,7 @@
 
 	// Clicking a select toggles the option list
 	$document.on('click', 'swift-box', function(e) {
-		if(this === active_select || isDisabled(this)) {
+		if(this === active_select || getDisabled(this)) {
 			hideOptions();
 		}
 		else {
@@ -372,7 +372,7 @@
 	});
 
 	$document.on('focusin', 'swift-box', function() {
-		if(this !== active_select) {
+		if(this !== active_select && !getDisabled(this)) {
 			addFocusClass(this);
 		}
 	});
@@ -390,7 +390,7 @@
 
 	// Pressing down arrow or letter keys shows the option list
 	$document.on('keydown keypress', 'swift-box', function(e) {
-		if(this === active_select || isDisabled(this)) {
+		if(this === active_select || getDisabled(this)) {
 			return;
 		}
 
@@ -465,7 +465,7 @@
 			}
 
 			// In singular mode, tab or enter selects the current option and hides the options
-			if(!isMultiple(active_select)) {
+			if(!getMultiple(active_select)) {
 				selectHighlightedOption();
 				hideOptions();
 			}
@@ -856,7 +856,7 @@
 				setValues(element, attempted_values);
 			}
 			// Otherwise, single selects default to the first option
-			else if(!isMultiple(element)) {
+			else if(!getMultiple(element)) {
 				setSelectedIndexes(element, 0);
 			}
 
@@ -1049,13 +1049,13 @@
 		active_select = element;
 
 		// Clear the filter input
-		$option_input.val('').attr('data-last-text', '');
+		$option_input.val('').attr('data-swift-box-last-text', '');
 
 		// Add the focus class to the select for styling
 		addFocusClass(element);
 
 		// Toggle the multiple class if the current select allows multiple values
-		$option_container.toggleClass('multiple', isMultiple(element));
+		$option_container.toggleClass('multiple', getMultiple(element));
 
 		// Show the option list
 		$option_container.removeClass('swift-box-hidden');
@@ -1267,8 +1267,7 @@
 			var option_index   = option.index;
 
 			$option_elements.eq(i)
-				.attr('data-index', option_index)
-				.attr('data-filtered-index', filtered_index)
+				.attr('data-swift-box-filtered-index', filtered_index)
 				.removeClass('swift-box-hidden')
 				.toggleClass('highlight', filtered_index === highlighted_option_index)
 				.toggleClass('selected', indexOf(selected_indexes, option_index) !== -1)
@@ -1354,7 +1353,7 @@
 
 		// Multiple selects need to toggle the selected option based on if it
 		// already exists within the selected options or not
-		if(isMultiple(active_select)) {
+		if(getMultiple(active_select)) {
 			var selected_indexes = getSelectedIndexes(active_select);
 			var exists           = indexOf(selected_indexes, index);
 
@@ -1502,14 +1501,62 @@
 	}
 
 	/**
-	 * Determines if a select is a multi-select
+	 * Toggles multi-select mode on SwiftBoxes
+	 * @param {Array}   elements The SwiftBox elements
+	 * @param {Boolean} multiple Set to true to enable multi-select mode
+	 */
+	function setMultiple(elements, multiple) {
+		elements = normalizeElementArray(elements);
+		multiple = !!multiple;
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element = elements[i];
+
+			if(multiple) {
+				element.setAttribute('multiple', '');
+			}
+			else {
+				element.removeAttribute('multiple');
+
+				var selected_indexes = getSelectedIndexes(element);
+				setSelectedIndexes(element, selected_indexes[0] || 0);
+			}
+		}
+	}
+
+	/**
+	 * Determines if a SwiftBox is in multi-select mode
 	 * @param  {Object}  element The SwiftBox element
 	 * @return {Boolean}
 	 */
-	function isMultiple(element) {
+	function getMultiple(element) {
 		element = normalizeElementArray(element)[0];
 
 		return element && element.hasAttribute('multiple');
+	}
+
+	/**
+	 * Toggles disabled state on SwiftBoxes
+	 * @param {Array}   elements The SwiftBox elements
+	 * @param {Boolean} multiple Set to true to disable
+	 */
+	function setDisabled(elements, disabled) {
+		elements = normalizeElementArray(elements);
+		disabled = !!disabled;
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element           = elements[i];
+			var container_element = getElementCache(element).container;
+
+			if(disabled) {
+				element.setAttribute('disabled', '');
+				container_element.removeAttribute('href');
+			}
+			else {
+				element.removeAttribute('disabled');
+				container_element.href = '#';
+			}
+		}
 	}
 
 	/**
@@ -1517,10 +1564,38 @@
 	 * @param  {Object}  element The SwiftBox element
 	 * @return {Boolean}
 	 */
-	function isDisabled(element) {
+	function getDisabled(element) {
 		element = normalizeElementArray(element)[0];
 
 		return element && element.hasAttribute('disabled');
+	}
+
+	/**
+	 * Toggles disabled state on SwiftBoxes
+	 * @param {Array}  elements  The SwiftBox elements
+	 * @param {Number} tab_index The tab index to set
+	 */
+	function setTabIndex(elements, tab_index) {
+		elements  = normalizeElementArray(elements);
+		tab_index = tab_index || 0;
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element           = elements[i];
+			var container_element = getElementCache(element).container;
+
+			container_element.tabIndex = tab_index;
+		}
+	}
+
+	/**
+	 * Determines if a select is disabled
+	 * @param  {Object}  element The SwiftBox element
+	 * @return {Number}
+	 */
+	function getTabIndex(element) {
+		var container_element = getElementCache(element).container;
+
+		return container_element && container_element.tabIndex;
 	}
 
 	// =========================================================================
@@ -1786,7 +1861,7 @@
 		var element = normalizeElementArray(element)[0];
 
 		if(!element) {
-			return '';
+			return;
 		}
 
 		return getElementCache(element).text[textContent];
@@ -1801,7 +1876,7 @@
 		var element = normalizeElementArray(element)[0];
 
 		if(!element) {
-			return '';
+			return;
 		}
 
 		var selected_indexes = getSelectedIndexes(element);
@@ -1849,10 +1924,10 @@
 	 * @param {Object} element The SwiftBox element
 	 */
 	function addFocusClass(element) {
-		var $element = $(element);
+		var container_element = getElementCache(element).container;
 
-		$element.addClass('focus');
-		$(getElementCache(element).container).addClass('focus');
+		$(element).addClass('focus');
+		$(container_element).addClass('focus');
 	}
 
 	/**
@@ -1860,10 +1935,10 @@
 	 * @param {Object} element The SwiftBox element
 	 */
 	function removeFocusClass(element) {
-		var $element = $(element);
+		var container_element = getElementCache(element).container;
 
-		$element.removeClass('focus');
-		$(getElementCache(element).container).removeClass('focus');
+		$(element).removeClass('focus');
+		$(container_element).removeClass('focus');
 	}
 
 	// =========================================================================
@@ -1976,7 +2051,7 @@
 			var values = getValues(elements);
 
 			// For single selects, convert the value array to a single value
-			if(!isMultiple(elements)) {
+			if(!getMultiple(elements)) {
 				values = values[0] || '';
 			}
 
@@ -1995,7 +2070,7 @@
 		if(arguments.length <= 1) {
 			var selected_indexes = getSelectedIndexes(elements);
 
-			if(!isMultiple(elements)) {
+			if(!getMultiple(elements)) {
 				selected_indexes = selected_indexes[0];
 
 				if(selected_indexes === undefined) {
@@ -2022,11 +2097,38 @@
 	SwiftBox.valueText = function(elements) {
 		var text = getValueText(elements);
 
-		if(!isMultiple(elements)) {
+		if(!getMultiple(elements)) {
 			return text[0] || '';
 		}
 
 		return text;
+	};
+
+	SwiftBox.tabIndex = function(elements) {
+		if(arguments.length <= 1) {
+			return getTabIndex(elements);
+		}
+
+		setTabIndex.apply(null, arguments);
+		return elements;
+	};
+
+	SwiftBox.multiple = function(elements) {
+		if(arguments.length <= 1) {
+			return getMultiple(elements);
+		}
+
+		setMultiple.apply(null, arguments);
+		return elements;
+	};
+
+	SwiftBox.disabled = function(elements) {
+		if(arguments.length <= 1) {
+			return getDisabled(elements);
+		}
+
+		setDisabled.apply(null, arguments);
+		return elements;
 	};
 
 	SwiftBox.focus = function(elements) {
