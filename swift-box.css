@@ -70,7 +70,6 @@ swift-box[disabled] {
 	cursor: inherit;
 }
 
-.swift-box .container:focus,
 .swift-box .container.focus {
 	outline: 1px solid #0AF;
 }
