@@ -714,7 +714,7 @@
 	 * ]
 	 *
 	 * Be aware that some browsers do not maintain key order within objects, so
-	 * the first method may break the sort_function argument is null
+	 * the first method may break when the sort_function argument is null
 	 *
 	 * @param {Array}   elements          The SwiftBox elements
 	 * @param {Array}   option_array      The options to set
@@ -862,6 +862,9 @@
 
 			// Set the width of the element to match the options
 			element.style.width = option_width + 'px';
+
+			// Cache the width
+			element.setAttribute('data-swift-box-width', option_width);
 		}
 	}
 
@@ -1057,6 +1060,11 @@
 		// Toggle the multiple class if the current select allows multiple values
 		$option_container.toggleClass('multiple', getMultiple(element));
 
+		// Size the option list
+		var option_array = getOptionArray(active_select) || [];
+		var sizer_width  = Math.max(element.getAttribute('data-swift-box-width'), $(element).outerWidth());
+		$option_container.css('min-width', (sizer_width - 2) + 'px');
+
 		// Show the option list
 		$option_container.removeClass('swift-box-hidden');
 
@@ -1198,16 +1206,12 @@
 		// Get some dimensions
 		var option_height        = getOptionHeight();
 		var container_max_height = option_height * max_visible_options;
-		var sizer_width          = Math.max(calculateWidth(active_select, option_array), $(active_select).outerWidth());
 		var sizer_height         = option_height * filtered_option_array.length;
 
 		$option_scroll
 			.scrollTop(0)
 			.scrollLeft(0)
-			.css({
-				width     : sizer_width - 2 + 'px',
-				maxHeight : container_max_height + 'px'
-			});
+			.css('max-height', container_max_height + 'px');
 
 		$option_sizer.css({
 			height: sizer_height + 'px'
@@ -1289,9 +1293,6 @@
 		$(scrollable_parents).off('.swift-box-scroll-event');
 
 		if(active_select) {
-			// Remove the focus class from the select
-			removeFocusClass(active_select);
-
 			// Focus on the select, blurring the filter input
 			focus(active_select);
 
@@ -1421,6 +1422,15 @@
 		var font_size   = $element.css('font-size');
 		var font_family = $element.css('font-family');
 
+		// For performance, only compare the longest of the options
+		var compare_limit = 100;
+		if(option_array.length > compare_limit) {
+			var tmp_option_array = option_array.slice(0);
+			tmp_option_array.sort(lengthSortFunction);
+
+			option_array = tmp_option_array.slice(0, compare_limit);
+		}
+
 		// Set the font on the canvas
 		if(supports.canvas) {
 			canvas_context.font = font_size + ' ' + font_family;
@@ -1456,6 +1466,10 @@
 		max_width += 20;
 
 		return max_width;
+	}
+
+	function lengthSortFunction(a, b) {
+		return a.text.length > b.text.length ? -1 : 1;
 	}
 
 	function defaultSortFunction(a, b) {
@@ -1801,7 +1815,12 @@
 				// Update the hidden inputs to contain the new values
 				var values      = getValues(element);
 				var name        = element.getAttribute('data-swift-box-name');
-				var input_count = values.length || 1;
+				var input_count = values.length;
+
+				// Single selects must have an input
+				if(!input_count && !getMultiple(element)) {
+					input_count = 1;
+				}
 
 				// Create a hidden input for each value
 				for(var j = 0; j < input_count; ++j) {
