@@ -9,7 +9,7 @@
  *
  * @TODO: Add support for components when they become relevant
  */
-(function($, window, undefined) {
+(function(window, $, undefined) {
 	'use strict';
 
 	// =========================================================================
@@ -100,13 +100,17 @@
 	var tag_regexp = /<[^>]+>/g;
 
 	// Hiddent input container template - raw element for performance
-	var hidden_input_container = $('<div class="swift-box-hidden-input-container"></div>').get(0);
+	var hidden_input_container       = document.createElement('div');
+	hidden_input_container.className = 'swift-box-hidden-input-container';
 
 	// Hidden input template - raw element for performance
-	var hidden_input = $('<input type="hidden" class="swift-box-hidden-input">').get(0);
+	var hidden_input       = document.createElement('input');
+	hidden_input.className = 'swift-box-hidden-input';
+	hidden_input.type      = 'hidden';
 
 	// Shadow root shim
-	var shadow_root_shim = $('<div class="swift-box-shadow-root"></div>').get(0);
+	var shadow_root_shim = document.createElement('div');
+	shadow_root_shim.className = 'swift-box-shadow-root';
 
 	// =========================================================================
 	// Utility functions
@@ -204,7 +208,7 @@
 					'<div class="input-container">',
 						'<input class="input" tabindex="-1" size="1" placeholder="Filter">',
 						'<div class="helpers">',
-							'<div class="all helper">Check all visible</div>',
+							'<div class="check-all helper">Check all visible</div>',
 							'<div class="clear helper">Clear selected</div>',
 						'</div>',
 					'</div>',
@@ -228,15 +232,20 @@
 	].join('');
 
 	// Convert the templates to elements and append them to the document
-	var input_template   = $(input_html).get(0);
-	var options_template = $(options_html).get(0);
+	var tmp_dom        = document.createElement('div');
+	tmp_dom.innerHTML  = input_html;
+	var input_template = tmp_dom.children[0];
+
+	var tmp_dom          = document.createElement('div');
+	tmp_dom.innerHTML    = options_html;
+	var options_template = tmp_dom.children[0];
 
 	document.documentElement.appendChild(input_template);
 	document.documentElement.appendChild(options_template);
 
 	// Get the DOM from the template
-	var input_template_dom   = supports.templates ? input_template.content : input_template.firstElementChild;
-	var options_template_dom = supports.templates ? options_template.content : options_template.firstElementChild;
+	var input_template_dom   = supports.templates ? input_template.content : input_template.children[0];
+	var options_template_dom = supports.templates ? options_template.content : options_template.children[0];
 
 	// =========================================================================
 	// Option List
@@ -249,14 +258,22 @@
 	var options_shadow_root = createShadowRoot(swift_box_options, options_template_dom);
 
 	// Store some references to important option list elements
-	var $option_container = $('.container', options_shadow_root);
-	var $option_input     = $('.input', options_shadow_root);
-	var $option_all       = $('.all', options_shadow_root);
-	var $option_clear     = $('.clear', options_shadow_root);
-	var $option_scroll    = $('.scroll', options_shadow_root);
-	var $option_sizer     = $('.sizer', options_shadow_root);
-	var $option_list      = $('.list', options_shadow_root);
-	var $option_elements  = $('.option', options_shadow_root);
+	var option_container = options_shadow_root.querySelector('.container');
+	var option_input     = options_shadow_root.querySelector('.input');
+	var option_all       = options_shadow_root.querySelector('.check-all');
+	var option_clear     = options_shadow_root.querySelector('.clear');
+	var option_scroll    = options_shadow_root.querySelector('.scroll');
+	var option_sizer     = options_shadow_root.querySelector('.sizer');
+	var option_list      = options_shadow_root.querySelector('.list');
+	var option_elements  = options_shadow_root.querySelectorAll('.option');
+
+	var $option_container = $(option_container);
+	var $option_input     = $(option_input);
+	var $option_all       = $(option_all);
+	var $option_clear     = $(option_clear);
+	var $option_scroll    = $(option_scroll);
+	var $option_list      = $(option_list);
+	var $option_elements  = $(option_elements);
 
 	// =========================================================================
 	// Event Handlers
@@ -264,7 +281,7 @@
 
 	// Clicking the option list refocuses the filter input
 	$option_container.on('mouseup', function() {
-		$option_input.focus();
+		option_input.focus();
 	});
 
 	// Typing within the filter input filters the options
@@ -312,7 +329,7 @@
 		}
 
 		setSelectedIndexes(active_select, new_indexes);
-		$option_input.focus();
+		option_input.focus();
 		renderOptions();
 	});
 
@@ -323,7 +340,7 @@
 		}
 
 		setSelectedIndexes(active_select, []);
-		$option_input.focus();
+		option_input.focus();
 		renderOptions();
 	});
 
@@ -421,7 +438,7 @@
 
 			if(e.type === 'keypress' && which >= 32) {
 				var character = String.fromCharCode(which);
-				$option_input.val(character);
+				option_input.value = character;
 			}
 		}
 	});
@@ -505,13 +522,13 @@
 			hideOptions();
 		}
 		else {
-			$option_input.focus();
+			option_input.focus();
 		}
 	});
 
 	// Shim label behavior
 	$document.on('click', 'label', function() {
-		var for_target = this.for;
+		var for_target = this['for']; // Bracket notation for IE8 compatibility
 		var element;
 
 		// Get the element the label is linked to
@@ -1052,7 +1069,8 @@
 		active_select = element;
 
 		// Clear the filter input
-		$option_input.val('').attr('data-swift-box-last-text', '');
+		option_input.value = '';
+		option_input.setAttribute('data-swift-box-last-text', '');
 
 		// Add the focus class to the select for styling
 		addFocusClass(element);
@@ -1062,8 +1080,8 @@
 
 		// Size the option list
 		var option_array = getOptionArray(active_select) || [];
-		var sizer_width  = Math.max(element.getAttribute('data-swift-box-width'), $(element).outerWidth());
-		$option_container.css('min-width', (sizer_width - 2) + 'px');
+		var sizer_width  = Math.max(element.getAttribute('data-swift-box-width'), element.offsetWidth);
+		option_container.style.minWidth = (sizer_width - 2) + 'px';
 
 		// Show the option list
 		$option_container.removeClass('swift-box-hidden');
@@ -1080,7 +1098,7 @@
 		highlightOption(highlight_index, true, true);
 
 		// Focus on the filter input
-		$option_input.focus();
+		option_input.focus();
 
 		// Bind to each parent's scroll event to reposition the options
 		// Scroll events do not bubble, so I think this is the only solution
@@ -1104,38 +1122,37 @@
 	 * Positions the option container appropriately close to the active select
 	 */
 	function positionOptions() {
-		var $active_select = $(active_select);
-		var width          = $active_select.outerWidth();
-		var height         = $active_select.outerHeight();
-		var offset         = $active_select.offset();
-		var window_width   = $window.width();
-		var window_height  = $window.height();
+		var width              = active_select.offsetWidth;
+		var height             = active_select.offsetHeight;
+		var bounding_rectangle = active_select.getBoundingClientRect();
+		var window_width       = window.innerWidth;
+		var window_height      = window.innerHeight;
 
-		var top_edge       = offset.top + height;
-		var left_edge      = offset.left;
-		var right_edge     = left_edge + $option_container.outerWidth();
-		var bottom_edge    = top_edge + $option_container.outerHeight();
+		var top_edge    = bounding_rectangle.top + height;
+		var left_edge   = bounding_rectangle.left;
+		var right_edge  = left_edge + option_container.offsetWidth;
+		var bottom_edge = top_edge + option_container.offsetHeight;
 
-		var top            = top_edge;
-		var right          = null;
-		var bottom         = null;
-		var left           = left_edge;
+		var top    = top_edge;
+		var right  = null;
+		var bottom = null;
+		var left   = left_edge;
 
 		// Save the current scroll position within the options
-		var scroll_top  = $option_scroll.scrollTop();
-		var scroll_left = $option_scroll.scrollLeft();
+		var scroll_top  = option_scroll.scrollTop;
+		var scroll_left = option_scroll.scrollLeft;
 
 		// Prevent the list from going off the page
 		if(bottom_edge >= window_height) {
 			top    = null;
-			bottom = window_height - offset.top;
+			bottom = window_height - bounding_rectangle.top;
 
 			$option_container.addClass('bottom');
-			$option_scroll.prependTo($option_container);
+			option_container.insertBefore(option_scroll, option_container.children[0]);
 		}
 		else {
 			$option_container.removeClass('bottom');
-			$option_scroll.appendTo($option_container);
+			option_container.appendChild(option_scroll);
 		}
 
 		if(right_edge >= window_width) {
@@ -1147,23 +1164,17 @@
 		}
 
 		// Position the option list
-		$option_container
-			.css({
-				top    : top === null ? 'auto' : top + 'px',
-				right  : right === null ? 'auto' : right + 'px',
-				bottom : bottom === null ? 'auto' : bottom + 'px',
-				left   : left === null ? 'auto' : left + 'px'
-			});
+		option_container.style.top    = top === null ? 'auto' : top + 'px',
+		option_container.style.right  = right === null ? 'auto' : right + 'px',
+		option_container.style.bottom = bottom === null ? 'auto' : bottom + 'px',
+		option_container.style.left   = left === null ? 'auto' : left + 'px'
 
 		// Restore the scroll position
-		$option_scroll.scrollTop(scroll_top);
-		$option_scroll.scrollLeft(scroll_left);
+		option_scroll.scrollTop = scroll_top;
+		option_scroll.scrollLeft = scroll_left;
 
 		// Focus on the filter input
-		$option_input.focus();
-
-		// Render the options
-		renderOptions();
+		option_input.focus();
 	}
 
 	/**
@@ -1208,14 +1219,10 @@
 		var container_max_height = option_height * max_visible_options;
 		var sizer_height         = option_height * filtered_option_array.length;
 
-		$option_scroll
-			.scrollTop(0)
-			.scrollLeft(0)
-			.css('max-height', container_max_height + 'px');
-
-		$option_sizer.css({
-			height: sizer_height + 'px'
-		});
+		option_scroll.scrollTop       = 0;
+		option_scroll.scrollLeft      = 0;
+		option_scroll.style.maxHeight = container_max_height + 'px';
+		option_sizer.style.height     = sizer_height + 'px';
 
 		// Highlight the first match
 		highlightOption(0, true, true);
@@ -1237,11 +1244,11 @@
 
 		// If no scroll position was passed in, use the current position
 		if(scroll_top === undefined) {
-			scroll_top = $option_scroll.scrollTop();
+			scroll_top = option_scroll.scrollTop;
 		}
 		// Otherwise set the scroll position on the element
 		else {
-			$option_scroll.scrollTop(scroll_top);
+			option_scroll.scrollTop = scroll_top;
 		}
 
 		// Store the height of a single option
@@ -1251,35 +1258,27 @@
 		var selected_indexes = getSelectedIndexes(active_select);
 
 		// Calculate the position of the visible options within the scrollable area
-		var top = scroll_top - (scroll_top % option_height);
+		option_list.style.top = (scroll_top - (scroll_top % option_height)) + 'px';
 
 		// Calculate which options to show based on the scroll position
 		var offset = Math.floor(scroll_top / option_height);
 		var limit  = Math.min(max_visible_options + 1, filtered_option_array.length - offset);
-
-		// Detach the option list for performance
-		$option_list
-			.detach()
-			.css({
-				top: top + 'px'
-			});
 
 		// For each visible option
 		for(var i = 0; i < limit; ++i) {
 			var filtered_index = i + offset;
 			var option         = filtered_option_array[filtered_index];
 			var option_index   = option.index;
+			var option_element = option_elements[i];
 
-			$option_elements.eq(i)
-				.attr('data-swift-box-filtered-index', filtered_index)
+			option_element.setAttribute('data-swift-box-filtered-index', filtered_index);
+			option_element.querySelector('.text').innerHTML = option.highlight_text;
+
+			$(option_element)
 				.removeClass('swift-box-hidden')
 				.toggleClass('highlight', filtered_index === highlighted_option_index)
-				.toggleClass('selected', indexOf(selected_indexes, option_index) !== -1)
-					.find('.text')
-					.html(option.highlight_text);
+				.toggleClass('selected', indexOf(selected_indexes, option_index) !== -1);
 		}
-
-		$option_scroll.append($option_list);
 	}
 
 	/**
@@ -1310,7 +1309,7 @@
 	function highlightOption(index, scroll, top) {
 		scroll = scroll || top;
 
-		var scroll_height = $option_scroll.height();
+		var scroll_height = option_scroll.offsetHeight;
 		var option_height = getOptionHeight();
 
 		index = +index || 0;
@@ -1320,7 +1319,7 @@
 		var scroll_top;
 
 		if(scroll) {
-			scroll_top     = $option_scroll.scrollTop();
+			scroll_top     = option_scroll.scrollTop;
 			var option_top = index * option_height;
 
 			if(option_top < scroll_top) {
@@ -1379,18 +1378,29 @@
 	 */
 	function getOptionHeight() {
 		// Reset the height on the elements
-		$option_elements.css({
-			height     : '',
-			lineHeight : ''
-		});
+		for(var i = 0; i < option_elements.length; ++i) {
+			var option_element              = option_elements[i];
+			option_element.style.height     = '';
+			option_element.style.lineHeight = '';
+		}
 
 		// Get the height of the first element
-		var height = Math.round($option_elements.outerHeight());
+		var first_option  = option_elements[0];
+		var $first_option = $(first_option);
+		var hidden        = $first_option.hasClass('swift-box-hidden');
 
-		$option_elements.css({
-			height     : height + 'px',
-			lineHeight : height + 'px'
-		});
+		$first_option.removeClass('swift-box-hidden');
+		var height = Math.round(first_option.offsetHeight);
+		$first_option.toggleClass('swift-box-hidden', hidden);
+
+		// Set the height on the elements so they are all uniform.
+		// This prevents the browser from using relative pixel widths
+		// that may result in arbitrary rounding during rendering
+		for(var i = 0; i < option_elements.length; ++i) {
+			var option_element              = option_elements[i];
+			option_element.style.height     = height + 'px';
+			option_element.style.lineHeight = height + 'px';
+		}
 
 		return height;
 	}
@@ -1460,7 +1470,7 @@
 		}
 
 		// Add the button's width
-		max_width += $(getElementCache(element).button).outerWidth();
+		max_width += getElementCache(element).button.offsetWidth;
 
 		// Add some extra pixels to account for padding and scrollbars
 		max_width += 20;
@@ -2247,4 +2257,4 @@
 
 		return args.length ? this : result;
 	}
-}(jQuery, window));
+}(window, jQuery));
