@@ -9,8 +9,11 @@
  *
  * @TODO: Add support for components when they become relevant
  */
-(function(window, $, undefined) {
+(function(context, window, $, undefined) {
 	'use strict';
+
+	// Add SwiftSearch to the current context
+	context['SwiftBox'] = SwiftBox;
 
 	// =========================================================================
 	// Browser Normalization
@@ -1999,7 +2002,6 @@
 	// =========================================================================
 	// Expose methods
 	// =========================================================================
-	window.SwiftBox = SwiftBox;
 
 	SwiftBox.setDefaultConfig = setDefaultConfig;
 
@@ -2256,4 +2258,4 @@
 
 		return args.length ? this : result;
 	}
-}(window, jQuery));
+}(this, window, jQuery));
