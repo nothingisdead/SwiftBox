@@ -11,13 +11,24 @@
 	height: 100%;
 }
 
+.swift-box,
+.swift-box a,
+.swift-box div,
+.swift-box-options,
+.swift-box-options div,
+.swift-box-options input {
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+}
+
 /* =============================================================================
 /* Select
 /* ========================================================================== */
 
 swift-box {
 	display: inline-block;
-	vertical-align: text-top;
+	vertical-align: bottom;
 	min-width: 30px;
 	width: 120px;
 	height: 1.5em;
@@ -29,9 +40,9 @@ swift-box {
 	cursor: pointer;
 }
 
-:host(swift-box:host) {
+:host(swift-box) {
 	display: inline-block;
-	vertical-align: text-top;
+	vertical-align: bottom;
 	min-width: 30px;
 	width: 120px;
 	height: 1.5em;
@@ -47,16 +58,11 @@ swift-box[disabled] {
 	cursor: default;
 }
 
-:host(swift-box[disabled]:host) {
+:host(swift-box[disabled]) {
 	cursor: default;
 }
 
 .swift-box {
-	height: 100%;
-	line-height: 1;
-}
-
-.swift-box .container {
 	display: table;
 	table-layout: fixed;
 	border-spacing: 0;
@@ -64,13 +70,15 @@ swift-box[disabled] {
 	width: 100%;
 	height: 100%;
 	max-height: 100%;
+	line-height: 1;
+	outline: none;
 	white-space: nowrap;
 	text-decoration: none;
 	color: #000;
 	cursor: inherit;
 }
 
-.swift-box .container.focus {
+.swift-box.focus {
 	outline: 1px solid #0AF;
 }
 
@@ -93,15 +101,15 @@ swift-box[disabled] {
 
 .swift-box .button {
 	width: 1.5em;
-	border-color: rgba(0, 0, 0, .2);
+	border-color: #37B;
 	background-color: #59D;
 	box-shadow: 0 0 1px 1px rgba(255, 255, 255, .3) inset;
 	text-align: center;
 	text-shadow: 1px 1px rgba(255, 255, 255, .1);
-	color: rgba(0, 0, 0, .5);
+	color: #048;
 }
 
-.swift-box .button:hover {
+.swift-box:hover .button {
 	background-color: #6AE;
 }
 
@@ -110,7 +118,7 @@ swift-box[disabled] .swift-box .text {
 	color: #777;
 }
 
-:host(swift-box[disabled]:host) .swift-box .text {
+:host(swift-box[disabled]) .swift-box .text {
 	background-color: #DDD;
 	color: #777;
 }
@@ -119,7 +127,7 @@ swift-box[disabled] .swift-box .button {
 	background-color: #AAA;
 }
 
-:host(swift-box[disabled]:host) .swift-box .button {
+:host(swift-box[disabled]) .swift-box .button {
 	background-color: #AAA;
 }
 
@@ -138,7 +146,7 @@ swift-box-options {
 	color: #000;
 }
 
-:host(swift-box-options:host) {
+:host(swift-box-options) {
 	position: fixed;
 	z-index: 2147483648;
 	display: block;
@@ -149,26 +157,20 @@ swift-box-options {
 	color: #000;
 }
 
-.swift-box-options {
-	height: 100%;
-}
-
 .swift-box-options mark {
 	background-color: transparent;
 	color: inherit;
 	font-weight: bold;
 }
 
-.swift-box-options .container {
+.swift-box-options {
 	position: fixed;
+	outline: 1px solid #0AF;
+	outline: rgba(0, 0, 0, 0);
 	border: 1px solid #AAA;
 	background-color: #FFF;
 	box-shadow: 0 0 0 1px #0AF,
 				3px 3px 3px rgba(0, 0, 0, .2);
-
-	-webkit-box-sizing: content-box;
-	-moz-box-sizing: content-box;
-	box-sizing: content-box;
 }
 
 .swift-box-options .input-container {
@@ -186,10 +188,6 @@ swift-box-options {
 	padding: 2px 3px;
 	border: 1px solid #AAA;
 	box-shadow: 2px 2px 2px rgba(0, 0, 0, .1) inset;
-
-	-webkit-box-sizing: border-box;
-	-moz-box-sizing: border-box;
-	box-sizing: border-box;
 }
 
 .swift-box-options .helpers {
@@ -220,9 +218,6 @@ swift-box-options {
 	position: relative;
 	overflow: auto;
 	min-width: 100%;
-}
-
-.swift-box-options .sizer {
 }
 
 .swift-box-options .list {
@@ -281,10 +276,6 @@ swift-box-options {
 	outline: 1px solid #000;
 	border: 2px solid #FFF;
 	background-color: #FFF;
-
-	-webkit-box-sizing: content-box;
-	-moz-box-sizing: content-box;
-	box-sizing: content-box;
 }
 
 .swift-box-options .multiple .option.selected .state {

@@ -154,7 +154,7 @@
 			}
 
 			element_cache.push({
-				container       : shadow_root.querySelector('.container'),
+				container       : shadow_root.querySelector('.swift-box'),
 				text            : shadow_root.querySelector('.text'),
 				button          : shadow_root.querySelector('.button'),
 				input_container : element.querySelector('.swift-box-hidden-input-container')
@@ -191,42 +191,38 @@
 	var input_html = [
 		'<' + template_element + ' class="swift-box-hidden">',
 			component_style_import,
-			'<div class="swift-box">',
-				'<a href="#" class="container">',
-					'<div class="text"></div>',
-					'<div class="button">&#9660;</div>',
-				'</a>',
-			'</div>',
+			'<a href="#" class="swift-box">',
+				'<div class="text"></div>',
+				'<div class="button">&#9660;</div>',
+			'</a>',
 		'</' + template_element + '>'
 	].join('');
 
 	var options_html = [
 		'<' + template_element + ' class="swift-box-hidden">',
 			component_style_import,
-			'<div class="swift-box-options">',
-				'<div class="container swift-box-hidden">',
-					'<div class="input-container">',
-						'<input class="input" tabindex="-1" size="1" placeholder="Filter">',
-						'<div class="helpers">',
-							'<div class="check-all helper">Check all visible</div>',
-							'<div class="clear helper">Clear selected</div>',
-						'</div>',
+			'<div class="swift-box-options swift-box-hidden">',
+				'<div class="input-container">',
+					'<input class="input" tabindex="-1" size="1" placeholder="Filter">',
+					'<div class="helpers">',
+						'<div class="check-all helper">Check all visible</div>',
+						'<div class="clear helper">Clear selected</div>',
 					'</div>',
-
-					'<div class="scroll">',
-						'<div class="sizer"></div>',
-						'<div class="list">',
-							Array(max_visible_options + 2).join([
-								'<div class="option">',
-									'<span class="state"></span>',
-									'<span class="text"></span>',
-								'</div>'
-							].join('')),
-						'</div>',
-					'</div>',
-
-					'<div class="none">No Options Found</div>',
 				'</div>',
+
+				'<div class="scroll">',
+					'<div class="sizer"></div>',
+					'<div class="list">',
+						Array(max_visible_options + 2).join([
+							'<div class="option">',
+								'<span class="state"></span>',
+								'<span class="text"></span>',
+							'</div>'
+						].join('')),
+					'</div>',
+				'</div>',
+
+				'<div class="none">No Options Found</div>',
 			'</div>',
 		'</' + template_element + '>'
 	].join('');
@@ -258,7 +254,7 @@
 	var options_shadow_root = createShadowRoot(swift_box_options, options_template_dom);
 
 	// Store some references to important option list elements
-	var option_container = options_shadow_root.querySelector('.container');
+	var option_container = options_shadow_root.querySelector('.swift-box-options');
 	var option_input     = options_shadow_root.querySelector('.input');
 	var option_all       = options_shadow_root.querySelector('.check-all');
 	var option_clear     = options_shadow_root.querySelector('.clear');
@@ -370,7 +366,7 @@
 
 		// For single selects, hide the options when once is clicked
 		if(!getMultiple(active_select)) {
-			hideOptions();
+			hideOptions(true);
 		}
 		// Multiple selects remain open
 		else {
@@ -381,7 +377,7 @@
 	// Clicking a select toggles the option list
 	$document.on('click', 'swift-box', function(e) {
 		if(this === active_select || getDisabled(this)) {
-			hideOptions();
+			hideOptions(true);
 		}
 		else {
 			showOptions(this);
@@ -484,7 +480,7 @@
 			// In singular mode, tab or enter selects the current option and hides the options
 			if(!getMultiple(active_select)) {
 				selectHighlightedOption();
-				hideOptions();
+				hideOptions(true);
 			}
 			// In multiple mode
 			else {
@@ -495,7 +491,7 @@
 				}
 				// The tab key hides options and moves to the next field
 				else {
-					hideOptions();
+					hideOptions(true);
 					focus(active_select);
 				}
 			}
@@ -507,7 +503,7 @@
 		var keyCode = e.which;
 
 		if(active_select && keyCode === 27) {
-			hideOptions();
+			hideOptions(true);
 		}
 	});
 
@@ -519,6 +515,7 @@
 
 		// Make sure the target of the click is not within the option list
 		if(!$(e.target).closest('swift-box, swift-box-options').length) {
+			removeFocusClass(active_select);
 			hideOptions();
 		}
 		else {
@@ -1081,7 +1078,7 @@
 		// Size the option list
 		var option_array = getOptionArray(active_select) || [];
 		var sizer_width  = Math.max(element.getAttribute('data-swift-box-width'), element.offsetWidth);
-		option_container.style.minWidth = (sizer_width - 2) + 'px';
+		option_container.style.minWidth = sizer_width + 'px';
 
 		// Show the option list
 		$option_container.removeClass('swift-box-hidden');
@@ -1251,6 +1248,10 @@
 			option_scroll.scrollTop = scroll_top;
 		}
 
+		// In IE8, setting the scrollTop too high results in a rendering bug,
+		// so snap it to the bottom if needed
+		scroll_top = Math.min(scroll_top, option_scroll.scrollHeight - option_scroll.offsetHeight);
+
 		// Store the height of a single option
 		var option_height = getOptionHeight();
 
@@ -1284,20 +1285,19 @@
 	/**
 	 * Hides the option list
 	 */
-	function hideOptions() {
+	function hideOptions(refocus) {
 		// Hide the option list
 		$option_container.addClass('swift-box-hidden');
 
 		// Unbind the scroll events
 		$(scrollable_parents).off('.swift-box-scroll-event');
 
-		if(active_select) {
-			// Focus on the select, blurring the filter input
+		// Refocus on the
+		if(refocus && active_select) {
 			focus(active_select);
-
-			// Clear the active select
-			active_select = null;
 		}
+
+		active_select = null;
 	}
 
 	/**
@@ -2070,8 +2070,7 @@
 	};
 
 	SwiftBox.hideOptions = function(elements) {
-		hideOptions.apply(null, arguments);
-
+		hideOptions();
 		return elements;
 	};
 
