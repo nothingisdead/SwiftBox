@@ -102,11 +102,11 @@
 	// RegExp used to remove tags from option text
 	var tag_regexp = /<[^>]+>/g;
 
-	// Hiddent input container template - raw element for performance
+	// Hiddent input container template
 	var hidden_input_container       = document.createElement('div');
 	hidden_input_container.className = 'swift-box-hidden-input-container';
 
-	// Hidden input template - raw element for performance
+	// Hidden input template
 	var hidden_input       = document.createElement('input');
 	hidden_input.className = 'swift-box-hidden-input';
 	hidden_input.type      = 'hidden';
@@ -119,6 +119,12 @@
 	// Utility functions
 	// =========================================================================
 
+	/**
+	 * Takes a single element, an array of elements, or a jQuery object and
+	 * normalizes it into a predictable array
+	 * @param  {Object} element The SwiftBox element
+	 * @return {Object}         An array of the passed in elements
+	 */
 	function normalizeElementArray(elements) {
 		if(elements === undefined || elements === null) {
 			return [];
@@ -194,6 +200,8 @@
 	var input_html = [
 		'<' + template_element + ' class="swift-box-hidden">',
 			component_style_import,
+
+			// An anchor tag is used so it can be tabbed into
 			'<a href="#" class="swift-box">',
 				'<div class="text"></div>',
 				'<div class="button">&#9660;</div>',
@@ -387,12 +395,14 @@
 		}
 	});
 
+	// Add the focus class when focused
 	$document.on('focusin', 'swift-box', function() {
 		if(this !== active_select && !getDisabled(this)) {
 			addFocusClass(this);
 		}
 	});
 
+	// Remove the focus class when blurred
 	$document.on('focusout', 'swift-box', function() {
 		if(this !== active_select) {
 			removeFocusClass(this);
@@ -544,7 +554,7 @@
 		}
 	});
 
-	// Scrolling or resizing the window repositions the option list
+	// Resizing the window repositions the option list
 	$window.on('resize', function() {
 		if(active_select) {
 			positionOptions();
