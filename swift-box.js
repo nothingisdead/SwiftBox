@@ -1887,7 +1887,7 @@
 		text += '';
 
 		for(var i = 0; i < elements.length; ++i) {
-			var element = elements[0];
+			var element = elements[i];
 			var text_element = getElementCache(element).text;
 
 			text_element[textContent] = text;
