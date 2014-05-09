@@ -102,7 +102,7 @@
 	// RegExp used to remove tags from option text
 	var tag_regexp = /<[^>]+>/g;
 
-	// Hiddent input container template
+	// Hidden input container template
 	var hidden_input_container       = document.createElement('div');
 	hidden_input_container.className = 'swift-box-hidden-input-container';
 
