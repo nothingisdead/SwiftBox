@@ -1857,11 +1857,19 @@
 
 			// Trigger a change if the indexes have changed
 			if(trigger_change) {
-				for(var j = 0; j < new_indexes.length; ++j) {
-					if(new_indexes[j] !== selected_indexes[j]) {
-						changed_elements.push(element);
-						break;
+				var changed = new_indexes.length !== selected_indexes.length;
+				
+				if(!changed) {
+					for(var j = 0; j < new_indexes.length; ++j) {
+						if(new_indexes[j] !== selected_indexes[j]) {
+							changed = true;
+							break;
+						}
 					}
+				}
+				
+				if(changed) {
+					changed_elements.push(element);
 				}
 			}
 		}
