@@ -10,31 +10,6 @@
  * @TODO: Add support for components when they become relevant
  */
 
-/* jshint
-	bitwise  : true,
-	browser  : true,
-	curly    : true,
-	devel    : true,
-	eqeqeq   : true,
-	freeze   : true,
-	immed    : true,
-	indent   : 4,
-	jquery   : true,
-	latedef  : nofunc,
-	maxlen   : 120,
-	newcap   : true,
-	noarg    : true,
-	noempty  : true,
-	nonbsp   : true,
-	nonew    : true,
-	quotmark : single,
-	shadow   : true,
-	strict   : true,
-	trailing : true,
-	undef    : true,
-	unused   : true
-*/
-
 (function(context, window, $, undefined) {
 	'use strict';
 
