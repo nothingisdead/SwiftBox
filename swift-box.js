@@ -303,7 +303,7 @@
 
 	var $option_container = $(option_container);
 	var $filter_input     = $(filter_input);
-	var $option_check_all       = $(option_check_all);
+	var $option_check_all = $(option_check_all);
 	var $option_clear     = $(option_clear);
 	var $option_scroll    = $(option_scroll);
 	var $option_list      = $(option_list);
