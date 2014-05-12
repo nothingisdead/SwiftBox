@@ -9,11 +9,37 @@
  *
  * @TODO: Add support for components when they become relevant
  */
+
+/* jshint
+	bitwise  : true,
+	browser  : true,
+	curly    : true,
+	devel    : true,
+	eqeqeq   : true,
+	freeze   : true,
+	immed    : true,
+	indent   : 4,
+	jquery   : true,
+	latedef  : nofunc,
+	maxlen   : 120,
+	newcap   : true,
+	noarg    : true,
+	noempty  : true,
+	nonbsp   : true,
+	nonew    : true,
+	quotmark : single,
+	shadow   : true,
+	strict   : true,
+	trailing : true,
+	undef    : true,
+	unused   : true
+*/
+
 (function(context, window, $, undefined) {
 	'use strict';
 
-	// Add SwiftSearch to the current context
-	context['SwiftBox'] = SwiftBox;
+	// Add SwiftBox to the current context
+	context.SwiftBox = swiftbox;
 
 	// =========================================================================
 	// Browser Normalization
@@ -35,7 +61,8 @@
 	var test_canvas   = document.createElement('canvas');
 
 	var supports = {
-		components : !!import_style_href && !!document.register && (!!test_element.createShadowRoot || !!test_element.webkitCreateShadowRoot) && false,
+		components : false && !!import_style_href && !!document.register &&
+		             (!!test_element.createShadowRoot || !!test_element.webkitCreateShadowRoot),
 		templates  : !!test_template.content,
 		canvas     : !!test_canvas.getContext
 	};
@@ -224,7 +251,7 @@
 				'<div class="swift-box-option-scroll">',
 					'<div class="swift-box-option-sizer"></div>',
 					'<div class="swift-box-option-list">',
-						Array(max_visible_options + 2).join([
+						new Array(max_visible_options + 2).join([
 							'<div class="swift-box-option">',
 								'<span class="swift-box-option-state"></span>',
 								'<span class="swift-box-option-text"></span>',
@@ -386,7 +413,7 @@
 	});
 
 	// Clicking a select toggles the option list
-	$document.on('click', 'swift-box', function(e) {
+	$document.on('click', 'swift-box', function() {
 		if(this === active_select || getDisabled(this)) {
 			hideOptions(true);
 		}
@@ -569,7 +596,7 @@
 	 * Converts select elements into SwiftBoxes
 	 * @return {Array} An array of SwiftBoxes
 	 */
-	function SwiftBox(elements, config) {
+	function swiftbox(elements, config) {
 		elements = normalizeElementArray(elements);
 
 		var new_elements = [];
@@ -745,7 +772,8 @@
 	 *
 	 * @param {Array}   elements          The SwiftBox elements
 	 * @param {Array}   option_array      The options to set
-	 * @param {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the options by text. Passing null will maintain the existing order.
+	 * @param {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the
+	 *                                    options by text. Passing null will maintain the existing order.
 	 * @param {Boolean} remove_duplicates Set to true to remove duplicate values
 	 */
 	function setOptionArray(elements, option_array, sort_function, remove_duplicates) {
@@ -787,7 +815,8 @@
 	 * Add options to a select
 	 * @param {Array}   elements          The SwiftBox elements
 	 * @param {Array}   option_array      The options to add
-	 * @param {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the options by text. Passing null will maintain the existing order.
+	 * @param {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the
+	 *                                    options by text. Passing null will maintain the existing order.
 	 * @param {Boolean} remove_duplicates Set to true to remove duplicate values
 	 */
 	function addOptionArray(elements, option_array, sort_function, remove_duplicates) {
@@ -909,7 +938,8 @@
 	/**
 	 * Converts an array of options into an optimized array for internal use
 	 * @param  {Array}   option_array      The options to add
-	 * @param  {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort the options by text. Passing null will maintain the existing order.
+	 * @param  {Array}   sort_function     A sort function to run on the options. Passing undefined or true will sort
+	 *                                     the options by text. Passing null will maintain the existing order.
 	 * @param  {Boolean} remove_duplicates Set to true to remove duplicate values
 	 * @return {Array}                     The normalized option array
 	 */
@@ -1089,7 +1119,6 @@
 		$option_container.toggleClass('swift-box-option-multiple', getMultiple(element));
 
 		// Size the option list
-		var option_array = getOptionArray(active_select) || [];
 		var sizer_width  = Math.max(element.getAttribute('data-swift-box-width'), element.offsetWidth);
 		option_container.style.minWidth = sizer_width + 'px';
 
@@ -1132,13 +1161,11 @@
 	 * Positions the option container appropriately close to the active select
 	 */
 	function positionOptions() {
-		var width              = active_select.offsetWidth;
-		var height             = active_select.offsetHeight;
 		var bounding_rectangle = active_select.getBoundingClientRect();
 		var window_width       = window.innerWidth;
 		var window_height      = window.innerHeight;
 
-		var top_edge    = bounding_rectangle.top + height;
+		var top_edge    = bounding_rectangle.bottom;
 		var left_edge   = bounding_rectangle.left;
 		var right_edge  = left_edge + option_container.offsetWidth;
 		var bottom_edge = top_edge + option_container.offsetHeight;
@@ -1165,19 +1192,19 @@
 			option_container.appendChild(option_scroll);
 		}
 
-		if(right_edge >= window_width) {
-			right = 0;
-		}
-
 		if(left <= 0) {
 			left = 0;
 		}
+		else if(right_edge >= window_width) {
+			right = 0;
+			left = null;
+		}
 
 		// Position the option list
-		option_container.style.top    = top === null ? 'auto' : top + 'px',
-		option_container.style.right  = right === null ? 'auto' : right + 'px',
-		option_container.style.bottom = bottom === null ? 'auto' : bottom + 'px',
-		option_container.style.left   = left === null ? 'auto' : left + 'px'
+		option_container.style.top    = top === null ? 'auto' : top + 'px';
+		option_container.style.right  = right === null ? 'auto' : right + 'px';
+		option_container.style.bottom = bottom === null ? 'auto' : bottom + 'px';
+		option_container.style.left   = left === null ? 'auto' : left + 'px';
 
 		// Restore the scroll position
 		option_scroll.scrollTop = scroll_top;
@@ -1435,10 +1462,15 @@
 	 * approximated, possibly failing miserably.
 	 * @param  {Object} element      The SwiftBox element
 	 * @param  {Array}  option_array The array of options
-	 * @return {Number}              The width of the widest option
+	 * @return {Number}              The calculated width
 	 */
 	function calculateWidth(element, option_array) {
-		element      = normalizeElementArray(element)[0];
+		element = normalizeElementArray(element)[0];
+
+		if(!element) {
+			return 0;
+		}
+
 		option_array = option_array || [];
 
 		var $element    = $(element);
@@ -1479,7 +1511,7 @@
 
 		// In older browsers, estimate based on the text length
 		if(!supports.canvas) {
-			max_width = Math.max(max_width, 8) * .75 * parseFloat(font_size);
+			max_width = Math.max(max_width, 8) * 0.75 * parseFloat(font_size);
 		}
 
 		// Add the button's width
@@ -1828,7 +1860,7 @@
 
 			// Clear the existing hidden inputs inside the container
 			var first_child;
-			while(first_child = input_container.firstChild) {
+			while((first_child = input_container.firstChild)) {
 				input_container.removeChild(first_child);
 			}
 
@@ -1858,7 +1890,7 @@
 			// Trigger a change if the indexes have changed
 			if(trigger_change) {
 				var changed = new_indexes.length !== selected_indexes.length;
-				
+
 				if(!changed) {
 					for(var j = 0; j < new_indexes.length; ++j) {
 						if(new_indexes[j] !== selected_indexes[j]) {
@@ -1867,7 +1899,7 @@
 						}
 					}
 				}
-				
+
 				if(changed) {
 					changed_elements.push(element);
 				}
@@ -2021,9 +2053,9 @@
 	// Expose methods
 	// =========================================================================
 
-	SwiftBox.setDefaultConfig = setDefaultConfig;
+	swiftbox.setDefaultConfig = setDefaultConfig;
 
-	SwiftBox.config = function(elements, option, value) {
+	swiftbox.config = function(elements, option, value) {
 		if(arguments.length <= 1) {
 			return $.extend(true, {}, getConfig(elements));
 		}
@@ -2038,7 +2070,7 @@
 		}
 		// Otherwise, we are setting a single option
 		else {
-			var config_object = {}
+			var config_object = {};
 			config_object[option] = value;
 
 			setConfig(elements, config_object);
@@ -2047,7 +2079,7 @@
 		return elements;
 	};
 
-	SwiftBox.options = function(elements) {
+	swiftbox.options = function(elements) {
 		if(arguments.length <= 1) {
 			return $.extend(true, [], getOptionArray(elements));
 		}
@@ -2056,19 +2088,19 @@
 		return elements;
 	};
 
-	SwiftBox.addOptions = function(elements) {
+	swiftbox.addOptions = function(elements) {
 		addOptionArray.apply(null, arguments);
 
 		return elements;
 	};
 
-	SwiftBox.removeOptions = function(elements) {
+	swiftbox.removeOptions = function(elements) {
 		removeOptionArray.apply(null, arguments);
 
 		return elements;
 	};
 
-	SwiftBox.optionHash = function(elements) {
+	swiftbox.optionHash = function(elements) {
 		if(arguments.length <= 1) {
 			return getOptionHash(elements);
 		}
@@ -2077,24 +2109,24 @@
 		return elements;
 	};
 
-	SwiftBox.showOptions = function(elements) {
+	swiftbox.showOptions = function(elements) {
 		showOptions.apply(null, arguments);
 
 		return elements;
 	};
 
-	SwiftBox.filterOptions = function(elements) {
+	swiftbox.filterOptions = function(elements) {
 		filterOptions.apply(null, arguments);
 
 		return elements;
 	};
 
-	SwiftBox.hideOptions = function(elements) {
+	swiftbox.hideOptions = function(elements) {
 		hideOptions();
 		return elements;
 	};
 
-	SwiftBox.value = function(elements) {
+	swiftbox.value = function(elements) {
 		if(arguments.length <= 1) {
 			var values = getValues(elements);
 
@@ -2110,11 +2142,11 @@
 		return elements;
 	};
 
-	SwiftBox.hasValue = function(elements) {
+	swiftbox.hasValue = function() {
 		return hasValue.apply(null, arguments);
 	};
 
-	SwiftBox.selectedIndex = function(elements) {
+	swiftbox.selectedIndex = function(elements) {
 		if(arguments.length <= 1) {
 			var selected_indexes = getSelectedIndexes(elements);
 
@@ -2133,7 +2165,7 @@
 		return elements;
 	};
 
-	SwiftBox.text = function(elements) {
+	swiftbox.text = function(elements) {
 		if(arguments.length <= 1) {
 			return getText(elements);
 		}
@@ -2142,7 +2174,7 @@
 		return elements;
 	};
 
-	SwiftBox.valueText = function(elements) {
+	swiftbox.valueText = function(elements) {
 		var text = getValueText(elements);
 
 		if(!getMultiple(elements)) {
@@ -2152,7 +2184,7 @@
 		return text;
 	};
 
-	SwiftBox.tabIndex = function(elements) {
+	swiftbox.tabIndex = function(elements) {
 		if(arguments.length <= 1) {
 			return getTabIndex(elements);
 		}
@@ -2161,7 +2193,7 @@
 		return elements;
 	};
 
-	SwiftBox.multiple = function(elements) {
+	swiftbox.multiple = function(elements) {
 		if(arguments.length <= 1) {
 			return getMultiple(elements);
 		}
@@ -2170,7 +2202,7 @@
 		return elements;
 	};
 
-	SwiftBox.disabled = function(elements) {
+	swiftbox.disabled = function(elements) {
 		if(arguments.length <= 1) {
 			return getDisabled(elements);
 		}
@@ -2179,13 +2211,13 @@
 		return elements;
 	};
 
-	SwiftBox.focus = function(elements) {
+	swiftbox.focus = function(elements) {
 		focus.apply(null, arguments);
 
 		return elements;
 	};
 
-	SwiftBox.blur = function(elements) {
+	swiftbox.blur = function(elements) {
 		blur.apply(null, arguments);
 
 		return elements;
@@ -2202,21 +2234,21 @@
 		if(args[0] === undefined || typeof args[0] === 'object') {
 			args.unshift(this);
 
-			return $(SwiftBox.apply(null, args));
+			return $(swiftbox.apply(null, args));
 		}
 
 		// Determine the method to be called
 		var method = args.shift();
 
-		if(typeof SwiftBox[method] !== 'function') {
+		if(typeof swiftbox[method] !== 'function') {
 			throw new Error('Invalid SwiftBox method: ' + method);
 		}
 
 		// Add the elements as the first argument
-		args.unshift($(SwiftBox(this)));
+		args.unshift($(swiftbox(this)));
 
 		// Call the method
-		return SwiftBox[method].apply(null, args);
+		return swiftbox[method].apply(null, args);
 	};
 
 	// Extend the :input pseudo-selector
@@ -2238,27 +2270,27 @@
 	var jquery_functions = {
 		value : $.fn.val,
 		text  : $.fn.text
-	}
+	};
 
 	// Extend the $.val method
 	$.fn.val = function() {
-		return prop.call(this, 'value', arguments);
+		return prop(this, 'value', arguments);
 	};
 
 	// Extend the $.val method
 	$.fn.text = function() {
-		return prop.call(this, 'text', arguments);
+		return prop(this, 'text', arguments);
 	};
 
-	function prop(property, args) {
-		if(!this.length) {
-			return this;
+	function prop($this, property, args) {
+		if(!$this.length) {
+			return $this;
 		}
 
 		var jquery_function   = jquery_functions[property];
-		var swiftbox_function = SwiftBox[property];
+		var swiftbox_function = swiftbox[property];
 
-		var $elements         = args.length ? this : this.first();
+		var $elements         = args.length ? $this : $this.first();
 		var $others           = $elements.not('swift-box');
 		var $swiftboxes       = $elements.filter('swift-box');
 		var result;
@@ -2274,6 +2306,6 @@
 			result = swiftbox_function.apply(null, swiftbox_args);
 		}
 
-		return args.length ? this : result;
+		return args.length ? $this : result;
 	}
 }(this, window, jQuery));
