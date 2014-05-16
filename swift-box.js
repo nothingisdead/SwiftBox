@@ -1432,7 +1432,7 @@
 	}
 
 	/**
-	 * Calculates the width of the select based on widest option.
+	 * Calculates the width of the select based on the widest option.
 	 * In older browsers that don't support canvas, the width is
 	 * approximated, possibly failing miserably.
 	 * @param  {Object} element      The SwiftBox element
@@ -1442,7 +1442,7 @@
 	function calculateWidth(element, option_array) {
 		element = normalizeElementArray(element)[0];
 
-		if(!element) {
+		if(!element || !option_array.length) {
 			return 0;
 		}
 
