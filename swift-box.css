@@ -30,7 +30,7 @@
 swift-box {
 	display: inline-block;
 	vertical-align: bottom;
-	min-width: 30px;
+	min-width: 4em;
 	width: 120px;
 	height: 1.5em;
 	border-radius: 3px;
@@ -45,7 +45,7 @@ swift-box {
 :host(swift-box) {
 	display: inline-block;
 	vertical-align: bottom;
-	min-width: 30px;
+	min-width: 4em;
 	width: 120px;
 	height: 1.5em;
 	background-color: #FFF;
