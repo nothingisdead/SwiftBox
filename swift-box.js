@@ -101,6 +101,9 @@
 	// RegExp used to escape RegExp special characters
 	var escape_regex = /([-[\]{}()*+?.,\\^$|#\s])/g;
 
+	// RegExp used to remove leading/trailing whitespace
+	var trim_regexp = /^\s+|\s+$/g;
+
 	// RegExp used to remove tags from option text
 	var tag_regexp = /<[^>]+>/g;
 
@@ -953,13 +956,14 @@
 				throw new Error('No value defined for option at index ' + key);
 			}
 
-			if(text === undefined || text === null) {
+			if(text === undefined) {
 				throw new Error('No text defined for option at index ' + key);
 			}
 
 			// Normalize value and text
 			value = value + '';
-			text  = $.trim((text + '').replace(tag_regexp + '', ''));
+			text  = (text === null ? '' : text) + '';
+			text  = text.replace(trim_regexp, '').replace(tag_regexp + '', '');
 
 			var new_option = {
 				index          : index,
@@ -1442,7 +1446,7 @@
 	function calculateWidth(element, option_array) {
 		element = normalizeElementArray(element)[0];
 
-		if(!element || !option_array.length) {
+		if(!element || !option_array || !option_array.length) {
 			return 0;
 		}
 
@@ -1719,7 +1723,7 @@
 					}
 				}
 			}
-			
+
 			setSelectedIndexes(element, indexes, trigger_change);
 		}
 	}
