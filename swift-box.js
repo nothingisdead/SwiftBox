@@ -1718,9 +1718,9 @@
 						indexes.push(index);
 					}
 				}
-
-				setSelectedIndexes(element, indexes, trigger_change);
 			}
+			
+			setSelectedIndexes(element, indexes, trigger_change);
 		}
 	}
 
