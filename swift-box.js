@@ -559,6 +559,18 @@
 		}
 	});
 
+	// Shim form reset behavior
+	$document.on('reset', 'form', function() {
+		var elements = this.getElementsByTagName('swift-box');
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element = elements[i];
+			var index   = getMultiple(element) ? null : 0;
+
+			setSelectedIndexes(element, index);
+		}
+	});
+
 	// Resizing the window repositions the option list
 	$window.on('resize', function() {
 		if(active_select) {
@@ -1862,6 +1874,7 @@
 					input.name  = name;
 					input.value = values[j] || '';
 
+					// Appending must occur AFTER setting the value for the form.reset() shim to work
 					input_container.appendChild(input);
 				}
 			}
