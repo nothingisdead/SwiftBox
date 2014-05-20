@@ -812,7 +812,7 @@
 	function addOptionArray(elements, option_array, sort_function, remove_duplicates) {
 		elements = normalizeElementArray(elements);
 
-		var normalized_option_array = normalizeOptionArray(option_array);
+		var normalized_option_array = normalizeOptionArray(option_array, sort_function, remove_duplicates);
 
 		for(var i = 0; i < elements.length; ++i) {
 			var element               = elements[i];
