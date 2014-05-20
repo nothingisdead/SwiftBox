@@ -29,7 +29,7 @@
 
 swift-box {
 	display: inline-block;
-	vertical-align: bottom;
+	vertical-align: middle;
 	min-width: 4em;
 	width: 120px;
 	height: 1.5em;
