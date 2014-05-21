@@ -266,6 +266,10 @@
 	// Create the option list - Use document.createElement for compatibility
 	var swift_box_options = document.createElement('swift-box-options');
 
+	$(function() {
+		document.body.appendChild(swift_box_options);
+	});
+
 	// Create the shadow root for the option list
 	var options_shadow_root = createShadowRoot(swift_box_options, options_template_dom);
 
@@ -1082,13 +1086,6 @@
 		// If the element is already active, we're done
 		if(active_select === element) {
 			return;
-		}
-
-		// Ensure the option container is within the body
-		// This is done here because the body element may not have existed previously
-		var main_element = document.body || document.documentElement;
-		if(swift_box_options.parentNode !== main_element) {
-			main_element.appendChild(swift_box_options);
 		}
 
 		// Remove the focus class on the currently active select
