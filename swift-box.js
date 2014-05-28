@@ -1290,7 +1290,7 @@
 		option_list.style.top = (scroll_top - (scroll_top % option_height)) + 'px';
 
 		// Calculate which options to show based on the scroll position
-		var offset = Math.floor(scroll_top / option_height);
+		var offset = Math.max(Math.floor(scroll_top / option_height), 0);
 		var limit  = Math.min(max_visible_options + 1, filtered_option_array.length - offset);
 
 		// For each visible option
