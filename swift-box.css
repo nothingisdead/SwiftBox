@@ -48,7 +48,6 @@ swift-box {
 	min-width: 4em;
 	width: 120px;
 	height: 1.5em;
-	border-radius: 3px;
 	background-color: #FFF;
 	font-family: arial;
 	font-size: inherit;
@@ -284,10 +283,8 @@ swift-box-options {
 .swift-box-option-state {
 	display: none;
 	vertical-align: middle;
-	min-width: 8px;
-	width: .8em;
-	min-height: 8px;
-	height: .8em;
+	width: 6px;
+	height: 6px;
 	margin-right: 4px;
 	outline: 1px solid #000;
 	border: 2px solid #FFF;
