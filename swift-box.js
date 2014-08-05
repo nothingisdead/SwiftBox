@@ -568,8 +568,9 @@
 			var option_array = extractOptionArrayFromSelect(element);
 			setOptionArray(new_element, option_array, null);
 
-			// Set the selected index
-			setSelectedIndexes(new_element, element.selectedIndex);
+			// Set the selected indexes
+			var selected_indexes = extractSelectedIndexesFromSelect(element);
+			setSelectedIndexes(new_element, selected_indexes);
 
 			new_elements.push(new_element);
 		}
@@ -1019,8 +1020,8 @@
 	 */
 	function extractOptionArrayFromSelect(select) {
 		var options = select.options;
+		var result  = [];
 
-		var result = [];
 		for(var i = 0; i < options.length; ++i) {
 			var option = options[i];
 
@@ -1028,6 +1029,26 @@
 				value: option.value,
 				text: option.text
 			});
+		}
+
+		return result;
+	}
+
+	/**
+	 * Extracts selected indexes from a traditional <select>
+	 * @param  {Object} select The select
+	 * @return {Array}         An array of indexes
+	 */
+	function extractSelectedIndexesFromSelect(select) {
+		var options = select.options;
+		var result  = [];
+
+		for(var i = 0; i < options.length; ++i) {
+			var option = options[i];
+
+			if(option.hasAttribute('selected')) {
+				result.push(i);
+			}
 		}
 
 		return result;
