@@ -917,7 +917,7 @@
 			var value;
 			var text;
 
-			if(typeof option === 'object') {
+			if(option !== null && typeof option === 'object') {
 				value = option.value;
 				text  = option.text;
 			}
