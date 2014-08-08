@@ -68,6 +68,10 @@
 
 	var prop = function($this, property, args) {
 		if(!$this.length) {
+			if(!args.length) {
+				return undefined;
+			}
+
 			return $this;
 		}
 
