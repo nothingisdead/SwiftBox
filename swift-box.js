@@ -279,18 +279,18 @@
 	});
 
 	// Add the focus class when focused
-	swiftcore.on(document, 'focusin', 'swift-box', function() {
+	swiftcore.on(document, 'focus', 'swift-box', function() {
 		if(this !== active_select && !getDisabled(this)) {
 			addFocusClass(this);
 		}
-	});
+	}, true);
 
 	// Remove the focus class when blurred
-	swiftcore.on(document, 'focusout', 'swift-box', function() {
+	swiftcore.on(document, 'blur', 'swift-box', function() {
 		if(this !== active_select) {
 			removeFocusClass(this);
 		}
-	});
+	}, true);
 
 	// Prevent default behavior when clicking on an anchor tag within the select
 	swiftcore.on(document, 'click', '.swift-box-link', function(e) {
