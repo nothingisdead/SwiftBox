@@ -431,7 +431,7 @@
 		}
 
 		if(element && element !== active_select && element.tagName === 'SWIFT-BOX') {
-			element.focus();
+			showOptions(element);
 		}
 	});
 
