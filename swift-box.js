@@ -108,11 +108,10 @@
 		'<template class="swift-box-hidden">',
 			component_style_import,
 
-			// An anchor tag is used so it can be tabbed into
-			'<a href="#" class="swift-box swift-box-link">',
+			'<div class="swift-box">',
 				'<div class="swift-box-text"></div>',
 				'<div class="swift-box-button">&#9660;</div>',
-			'</a>',
+			'</div>',
 		'</template>'
 	].join('');
 
@@ -122,6 +121,7 @@
 			'<div class="swift-box-options swift-box-hidden">',
 				'<div class="swift-box-option-filter-container">',
 					'<input class="swift-box-option-filter-input" tabindex="-1" size="1" placeholder="Filter">',
+
 					'<div class="swift-box-option-helpers">',
 						'<div class="swift-box-option-helper swift-box-option-check-all">Check all visible</div>',
 						'<div class="swift-box-option-helper swift-box-option-clear">Clear selected</div>',
@@ -262,7 +262,7 @@
 		// Select the option
 		selectHighlightedOption();
 
-		// For single selects, hide the options when once is clicked
+		// For single selects, hide the options when one is clicked
 		if(!getMultiple(active_select)) {
 			hideOptions(true);
 		}
@@ -291,11 +291,6 @@
 			removeFocusClass(this);
 		}
 	}, true);
-
-	// Prevent default behavior when clicking on an anchor tag within the select
-	swiftcore.on(document, 'click', '.swift-box-link', function(e) {
-		e.preventDefault();
-	});
 
 	// Pressing down arrow or letter keys shows the option list
 	swiftcore.on(document, 'keydown keypress', 'swift-box', function(e) {
@@ -391,7 +386,7 @@
 				// The tab key hides options and moves to the next field
 				else {
 					hideOptions(true);
-					focus(active_select);
+					active_select.focus()
 				}
 			}
 		}
@@ -412,13 +407,13 @@
 			return;
 		}
 
-		// Make sure the target of the click is not within the option list
-		if(!swiftcore.closest(e.target, 'swift-box, swift-box-options')) {
-			removeFocusClass(active_select);
-			hideOptions();
+		// Check if the target of the click is within the option list
+		if(swiftcore.closest(e.target, 'swift-box, swift-box-options')) {
+			filter_input.focus();
 		}
 		else {
-			filter_input.focus();
+			removeFocusClass(active_select);
+			hideOptions();
 		}
 	});
 
@@ -436,7 +431,7 @@
 		}
 
 		if(element && element !== active_select && element.tagName === 'SWIFT-BOX') {
-			focus(element);
+			element.focus();
 		}
 	});
 
@@ -480,8 +475,7 @@
 
 		for(var i = 0; i < elements.length; ++i) {
 			var element = elements[i];
-
-			var tag = element.tagName.toLowerCase();
+			var tag     = element.tagName.toLowerCase();
 
 			// If the element is already initialized, we're done
 			if(tag === 'swift-box') {
@@ -535,6 +529,9 @@
 			// Set the selected indexes
 			var selected_indexes = extractSelectedIndexesFromSelect(element);
 			setSelectedIndexes(new_element, selected_indexes);
+
+			// Ensure a tabindex
+			new_element.tabIndex = element.tabIndex || 0;
 
 			new_elements.push(new_element);
 		}
@@ -1245,7 +1242,7 @@
 
 		// Refocus on the
 		if(refocus && active_select) {
-			focus(active_select);
+			active_select.focus();
 		}
 
 		active_select = null;
@@ -1492,34 +1489,6 @@
 		element = normalizeElementArray(element)[0];
 
 		return element && element.hasAttribute('disabled');
-	}
-
-	/**
-	 * Sets the tabIndex on SwiftBoxes
-	 * @param {Array}  elements  The SwiftBox elements
-	 * @param {Number} tab_index The tab index to set
-	 */
-	function setTabIndex(elements, tab_index) {
-		elements  = normalizeElementArray(elements);
-		tab_index = tab_index || 0;
-
-		for(var i = 0; i < elements.length; ++i) {
-			var element           = elements[i];
-			var container_element = getElementCache(element).container;
-
-			container_element.tabIndex = tab_index;
-		}
-	}
-
-	/**
-	 * Gets the tabIndex of a SwiftBox
-	 * @param  {Object}  element The SwiftBox element
-	 * @return {Number}
-	 */
-	function getTabIndex(element) {
-		var container_element = getElementCache(element).container;
-
-		return container_element && container_element.tabIndex;
 	}
 
 	// =========================================================================
@@ -1889,38 +1858,11 @@
 	}
 
 	/**
-	 * Focuses a select
-	 * @param {Object} element The SwiftBox element
-	 */
-	function focus(element) {
-		var container_element = getElementCache(element).container;
-
-		if(container_element) {
-			container_element.focus();
-		}
-	}
-
-	/**
-	 * Blurs a select
-	 * @param {Object} element The SwiftBox element
-	 */
-	function blur(element) {
-		var container_element = getElementCache(element).container;
-
-		if(container_element) {
-			container_element.blur();
-		}
-	}
-
-	/**
 	 * Marks a select as focused
 	 * @param {Object} element The SwiftBox element
 	 */
 	function addFocusClass(element) {
-		var container_element = getElementCache(element).container;
-
 		element.classList.add('swift-box-focus');
-		container_element.classList.add('swift-box-focus');
 	}
 
 	/**
@@ -1928,10 +1870,7 @@
 	 * @param {Object} element The SwiftBox element
 	 */
 	function removeFocusClass(element) {
-		var container_element = getElementCache(element).container;
-
 		element.classList.remove('swift-box-focus');
-		container_element.classList.remove('swift-box-focus');
 	}
 
 	// =========================================================================
@@ -2075,15 +2014,6 @@
 		return text;
 	};
 
-	swiftbox.tabIndex = function(elements) {
-		if(arguments.length <= 1) {
-			return getTabIndex(elements);
-		}
-
-		setTabIndex.apply(null, arguments);
-		return elements;
-	};
-
 	swiftbox.multiple = function(elements) {
 		if(arguments.length <= 1) {
 			return getMultiple(elements);
@@ -2099,18 +2029,6 @@
 		}
 
 		setDisabled.apply(null, arguments);
-		return elements;
-	};
-
-	swiftbox.focus = function(elements) {
-		focus.apply(null, arguments);
-
-		return elements;
-	};
-
-	swiftbox.blur = function(elements) {
-		blur.apply(null, arguments);
-
 		return elements;
 	};
 
