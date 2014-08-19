@@ -1010,7 +1010,7 @@
 		for(var i = 0; i < options.length; ++i) {
 			var option = options[i];
 
-			if(option.hasAttribute('selected')) {
+			if(option.selected) {
 				result.push(i);
 			}
 		}
@@ -1688,6 +1688,11 @@
 				}
 
 				new_indexes.sort();
+
+				// Single selects must have an option selected
+				if(!new_indexes.length && !getMultiple(element)) {
+					new_indexes.push(0);
+				}
 			}
 
 			// Set the new indexes
