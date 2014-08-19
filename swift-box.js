@@ -226,36 +226,7 @@
 			return;
 		}
 
-		var selected_indexes = getSelectedIndexes(active_select);
-		var new_indexes      = [];
-		var index_map        = {};
-		var trigger_change   = false;
-
-		for(var i = 0; i < selected_indexes.length; ++i) {
-			var index = selected_indexes[i];
-
-			index_map[index] = true;
-		}
-
-		for(var i = 0; i < filtered_option_array.length; ++i) {
-			var filtered_option = filtered_option_array[i];
-			var index           = filtered_option.index;
-
-			// If this is a new option, flag that we need to trigger change
-			if(!index_map[index]) {
-				trigger_change = true;
-			}
-
-			index_map[index] = true;
-		}
-
-		for(var index in index_map) {
-			new_indexes.push(index);
-		}
-
-		setSelectedIndexes(active_select, new_indexes, trigger_change);
-		filter_input.focus();
-		renderOptions();
+		selectAll(active_select, true);
 	});
 
 	// Clicking the clear button clears the selected values
@@ -265,8 +236,6 @@
 		}
 
 		setSelectedIndexes(active_select, []);
-		filter_input.focus();
-		renderOptions();
 	});
 
 	// Scrolling renders the options
@@ -296,10 +265,6 @@
 		// For single selects, hide the options when once is clicked
 		if(!getMultiple(active_select)) {
 			hideOptions(true);
-		}
-		// Multiple selects remain open
-		else {
-			renderOptions();
 		}
 	});
 
@@ -422,7 +387,6 @@
 				// Only the enter key selects options
 				if(keyCode === 13) {
 					selectHighlightedOption();
-					renderOptions();
 				}
 				// The tab key hides options and moves to the next field
 				else {
@@ -1338,7 +1302,7 @@
 		var index            = option.index;
 		var selected_indexes = index;
 
-		// Multiple selects need to toggle the selected option based on if it
+		// Multi-selects need to toggle the selected option based on if it
 		// already exists within the selected options or not
 		if(getMultiple(active_select)) {
 			var selected_indexes = getSelectedIndexes(active_select);
@@ -1796,11 +1760,66 @@
 					changed_elements.push(element);
 				}
 			}
+
+			if(element === active_select) {
+				filter_input.focus();
+				renderOptions();
+			}
 		}
 
 		// Trigger any change events
 		if(changed_elements.length) {
 			swiftcore.trigger(changed_elements, 'change');
+		}
+	}
+
+	/**
+	 * Selects all options on a multi-select(s)
+	 * @param {Array}   elements The SwiftBox elements to select all options on
+	 * @param {Boolean} filtered If the SwiftBox is active, only select options that have been filtered
+	 */
+	function selectAll(elements, filtered) {
+		elements = normalizeElementArray(elements);
+
+		for(var i = 0; i < elements.length; ++i) {
+			var element = elements[i];
+
+			// Make sure the element is a multi-select
+			if(!getMultiple(element)) {
+				return;
+			}
+
+			var selected_indexes   = getSelectedIndexes(element);
+			var filtered_only      = filtered && element === active_select;
+			var option_array       = filtered_only ? filtered_option_array : getOptionArray(element);
+			var new_indexes        = [];
+			var index_map          = {};
+			var trigger_change     = false;
+
+			// Get the currently selected indexes
+			for(var j = 0; j < selected_indexes.length; ++j) {
+				var index = selected_indexes[j];
+
+				index_map[index] = true;
+			}
+
+			// Check the remaining options
+			for(var j = 0; j < option_array.length; ++j) {
+				var option = option_array[j];
+				var index  = option.index;
+
+				if(!index_map[index]) {
+					trigger_change = true;
+				}
+
+				index_map[index] = true;
+			}
+
+			for(var index in index_map) {
+				new_indexes.push(index);
+			}
+
+			setSelectedIndexes(element, new_indexes, trigger_change);
 		}
 	}
 
@@ -2028,6 +2047,12 @@
 		}
 
 		setSelectedIndexes.apply(null, arguments);
+		return elements;
+	};
+
+	swiftbox.selectAll = function(elements) {
+		selectAll.apply(null, arguments);
+
 		return elements;
 	};
 
