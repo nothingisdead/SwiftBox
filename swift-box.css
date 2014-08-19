@@ -42,7 +42,7 @@ swift-box {
 	cursor: pointer;
 }
 
-:host(swift-box) {
+:host() {
 	display: inline-block;
 	vertical-align: middle;
 	min-width: 4em;
@@ -60,7 +60,7 @@ swift-box[disabled] {
 	cursor: default;
 }
 
-:host(swift-box[disabled]) {
+:host([disabled]) {
 	cursor: default;
 }
 
@@ -81,7 +81,13 @@ swift-box[disabled] {
 	cursor: inherit;
 }
 
-.swift-box-focus {
+.swift-box-focus .swift-box {
+	outline: 1px solid #0AF;
+	outline-color: rgba(0, 0, 0, 0);
+	box-shadow: 0 0 0 1px #0AF;
+}
+
+:host(.swift-box-focus) .swift-box {
 	outline: 1px solid #0AF;
 	outline-color: rgba(0, 0, 0, 0);
 	box-shadow: 0 0 0 1px #0AF;
