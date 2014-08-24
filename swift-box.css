@@ -42,25 +42,7 @@ swift-box {
 	cursor: pointer;
 }
 
-:host() {
-	display: inline-block;
-	vertical-align: middle;
-	min-width: 4em;
-	width: 120px;
-	height: 1.5em;
-	background-color: #FFF;
-	font-family: arial;
-	font-size: inherit;
-	font-weight: normal;
-	text-align: left;
-	cursor: pointer;
-}
-
 swift-box[disabled] {
-	cursor: default;
-}
-
-:host([disabled]) {
 	cursor: default;
 }
 
@@ -157,17 +139,6 @@ swift-box[disabled]:hover .swift-box-button {
 /* ========================================================================== */
 
 swift-box-options {
-	position: fixed;
-	z-index: 2147483648;
-	display: block;
-	top: 0;
-	left: 0;
-	font-family: arial;
-	font-size: inherit;
-	color: #000;
-}
-
-:host(swift-box-options) {
 	position: fixed;
 	z-index: 2147483648;
 	display: block;

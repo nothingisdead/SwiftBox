@@ -25,7 +25,7 @@
 	// Get the CSS url so shadow DOM can import the stylesheet
 	var import_style_href = window.swift_box_style_href;
 
-	var use_components = false && swiftcore.supports.components && !!import_style_href;
+	var use_components = swiftcore.supports.components && !!import_style_href;
 
 	// Import rule for shadow DOM
 	var component_style_import = use_components ? '<style>@import url(' + import_style_href + ');</style>' : '';
@@ -81,16 +81,16 @@
 	shadow_root_shim.className = 'swift-box-shadow-root';
 
 	// =========================================================================
-	// Custom Tags
+	// Custom Components
 	// =========================================================================
 
-	// Register the tags as components if supported
+	// Register the elements as components if supported
 	if(use_components) {
-		document.register('swift-box', {
+		document.registerElement('swift-box', {
 			prototype: Object.create(HTMLElement.prototype)
 		});
 
-		document.register('swift-box-options', {
+		document.registerElement('swift-box-options', {
 			prototype: Object.create(HTMLElement.prototype)
 		});
 	}
