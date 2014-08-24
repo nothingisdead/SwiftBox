@@ -25,7 +25,7 @@
 	// Get the CSS url so shadow DOM can import the stylesheet
 	var import_style_href = window.swift_box_style_href;
 
-	var use_components = swiftcore.supports.components && !!import_style_href;
+	var use_components = false && swiftcore.supports.components && !!import_style_href;
 
 	// Import rule for shadow DOM
 	var component_style_import = use_components ? '<style>@import url(' + import_style_href + ');</style>' : '';
