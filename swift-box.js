@@ -235,7 +235,7 @@
 			return;
 		}
 
-		setSelectedIndexes(active_select, []);
+		setSelectedIndexes(active_select, [], true);
 	});
 
 	// Scrolling renders the options
@@ -294,7 +294,7 @@
 
 	// Pressing down arrow or letter keys shows the option list
 	swiftcore.on(document, 'keydown keypress', 'swift-box', function(e) {
-		if(this === active_select || getDisabled(this)) {
+		if(e.ctrlKey || this === active_select || getDisabled(this)) {
 			return;
 		}
 
@@ -443,7 +443,7 @@
 			var element = elements[i];
 			var index   = getMultiple(element) ? null : 0;
 
-			setSelectedIndexes(element, index);
+			setSelectedIndexes(element, index, true);
 		}
 	});
 
