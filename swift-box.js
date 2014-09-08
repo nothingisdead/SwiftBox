@@ -1,6 +1,6 @@
 /*!
  * SwiftBox
- * A lightweight combobox plugin for jQuery
+ * A lightweight combobox
  * https://github.com/Knotix/SwiftBox/
  *
  * Copyright 2014 Samuel Hodge
@@ -23,9 +23,12 @@
 	// =========================================================================
 
 	// Get the CSS url so shadow DOM can import the stylesheet
-	var import_style_href = window.swift_box_style_href;
+	var scripts           = document.scripts;
+	var current_script    = scripts[scripts.length - 1];
+	var import_style_href = current_script.getAttribute('data-style');
 
-	var use_components = false && swiftcore.supports.components && !!import_style_href;
+	// Determine if components can be used
+	var use_components = false && swiftcore.supports.components && import_style_href;
 
 	// Import rule for shadow DOM
 	var component_style_import = use_components ? '<style>@import url(' + import_style_href + ');</style>' : '';
@@ -436,14 +439,18 @@
 	});
 
 	// Shim form reset behavior
-	swiftcore.on(document, 'reset', 'form', function() {
+	swiftcore.on(document, 'reset', 'form', function(e) {
+		if(e.defaultPrevented) {
+			return;
+		}
+
 		var elements = this.getElementsByTagName('swift-box');
 
 		for(var i = 0; i < elements.length; ++i) {
-			var element = elements[i];
-			var index   = getMultiple(element) ? null : 0;
+			var element     = elements[i];
+			var option_hash = getOptionHash(element);
 
-			setSelectedIndexes(element, index, true);
+			setOptionHash(element, option_hash);
 		}
 	});
 
@@ -525,10 +532,6 @@
 			// Extract existing options
 			var option_array = extractOptionArrayFromSelect(element);
 			setOptionArray(new_element, option_array, null);
-
-			// Set the selected indexes
-			var selected_indexes = extractSelectedIndexesFromSelect(element);
-			setSelectedIndexes(new_element, selected_indexes);
 
 			// Ensure a tabindex
 			new_element.tabIndex = element.tabIndex || 0;
@@ -803,29 +806,29 @@
 		// Calculate the width of the options
 		var option_width = calculateWidth(elements, option_array);
 
+		// Get any options marked as selected
+		var selected_indexes = [];
+
+		for(var i = 0; i < option_array.length; ++i) {
+			var option = option_array[i];
+
+			if(option.selected) {
+				selected_indexes.push(i);
+			}
+		}
+
+		// Set the option hash on each element
 		for(var i = 0; i < elements.length; ++i) {
-			var element = elements[i];
-
-			// Get any existing values
-			var values = getValues(element);
-
-			// Get any attempted values
-			var attempted_values = element.getAttribute('data-swift-box-attempted-values');
+			var element     = elements[i];
+			var is_multiple = getMultiple(element);
 
 			// Set the new option hash
 			element.setAttribute('data-swift-box-options', hash);
 
-			// If values were found, set them
-			if(values.length) {
-				setValues(element, values);
+			if(is_multiple || selected_indexes.length) {
+				setSelectedIndexes(element, selected_indexes);
 			}
-			// If we previously tried to set values without any options, try again
-			else if(attempted_values) {
-				attempted_values = JSON.parse(attempted_values);
-				setValues(element, attempted_values);
-			}
-			// Otherwise, single selects default to the first option
-			else if(!getMultiple(element)) {
+			else if(!is_multiple) {
 				setSelectedIndexes(element, 0);
 			}
 
@@ -874,13 +877,15 @@
 				continue;
 			}
 
-			var option = option_array[key];
+			var option   = option_array[key];
+			var selected = false;
 			var value;
 			var text;
 
 			if(option !== null && typeof option === 'object') {
-				value = option.value;
-				text  = option.text;
+				value    = option.value;
+				text     = option.text;
+				selected = option.selected === true;
 			}
 			else {
 				value = key;
@@ -902,6 +907,7 @@
 
 			var new_option = {
 				index          : index,
+				selected       : selected,
 				value          : value,
 				text           : text,
 				highlight_text : text
@@ -963,7 +969,10 @@
 				var option = option_array[j];
 				var existing_option = existing_option_array[j];
 
-				if(option.value !== existing_option.value || option.text !== existing_option.text) {
+				if( option.value    !== existing_option.value    ||
+					option.text     !== existing_option.text     ||
+					option.selected !== existing_option.selected
+				) {
 					continue option_array_loop;
 				}
 			}
@@ -987,29 +996,10 @@
 			var option = options[i];
 
 			result.push({
-				value: option.value,
-				text: option.text
+				value    : option.value,
+				text     : option.text,
+				selected : option.selected
 			});
-		}
-
-		return result;
-	}
-
-	/**
-	 * Extracts selected indexes from a traditional <select>
-	 * @param  {Object} select The select
-	 * @return {Array}         An array of indexes
-	 */
-	function extractSelectedIndexesFromSelect(select) {
-		var options = select.options;
-		var result  = [];
-
-		for(var i = 0; i < options.length; ++i) {
-			var option = options[i];
-
-			if(option.selected) {
-				result.push(i);
-			}
 		}
 
 		return result;
@@ -1428,7 +1418,6 @@
 	 */
 	function setMultiple(elements, multiple) {
 		elements = normalizeElementArray(elements);
-		multiple = !!multiple;
 
 		for(var i = 0; i < elements.length; ++i) {
 			var element = elements[i];
@@ -1463,7 +1452,6 @@
 	 */
 	function setDisabled(elements, disabled) {
 		elements = normalizeElementArray(elements);
-		disabled = !!disabled;
 
 		for(var i = 0; i < elements.length; ++i) {
 			var element           = elements[i];
@@ -1549,14 +1537,6 @@
 			var element          = elements[i];
 			var option_value_map = getOptionValueMap(element);
 			var indexes          = [];
-
-			// If there are no options, store the attempted values so we can try
-			// to set them in the future when options are defined
-			var attempted_values = '';
-			if(!option_value_map && clean_values.length) {
-				attempted_values = JSON.stringify(clean_values);
-			}
-			element.setAttribute('data-swift-box-attempted-values', attempted_values);
 
 			if(option_value_map) {
 				for(var j = 0; j < clean_values.length; ++j) {
@@ -1648,10 +1628,7 @@
 						continue;
 					}
 
-					var option = option_array[index];
-					var valid  = !!option;
-
-					if(valid) {
+					if(option_array[index]) {
 						new_indexes.push(index);
 					}
 				}
@@ -1707,7 +1684,6 @@
 					input.name  = name;
 					input.value = values[j] || '';
 
-					// Appending must occur AFTER setting the value for the form.reset() shim to work
 					input_container.appendChild(input);
 				}
 			}
