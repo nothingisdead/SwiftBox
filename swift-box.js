@@ -794,13 +794,19 @@
 	 */
 	function setOptionHash(elements, hash) {
 		elements = normalizeElementArray(elements);
-		var option_array = option_arrays[hash];
+
+		var option_array;
 
 		if(hash === undefined || hash === null) {
-			hash = '';
+			hash         = '';
+			option_array = [];
 		}
-		else if(!option_array) {
-			throw new Error('Invalid option hash: ' + hash);
+		else {
+			option_array = option_arrays[hash];
+
+			if(!option_array) {
+				throw new Error('Invalid option hash: ' + hash);
+			}
 		}
 
 		// Calculate the width of the options
