@@ -975,8 +975,9 @@
 				var option = option_array[j];
 				var existing_option = existing_option_array[j];
 
-				if( option.value    !== existing_option.value    ||
-					option.text     !== existing_option.text     ||
+				if(
+					option.value    !== existing_option.value ||
+					option.text     !== existing_option.text ||
 					option.selected !== existing_option.selected
 				) {
 					continue option_array_loop;
