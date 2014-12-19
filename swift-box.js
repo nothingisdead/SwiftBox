@@ -1722,6 +1722,10 @@
 		// Trigger any change events
 		if(changed_elements.length) {
 			swiftcore.trigger(changed_elements, 'change');
+
+			// External code may change the DOM based on the change event
+			// Reposition the options to compensate for it
+			positionOptions();
 		}
 	}
 
