@@ -1725,7 +1725,9 @@
 
 			// External code may change the DOM based on the change event
 			// Reposition the options to compensate for it
-			positionOptions();
+			if(active_select) {
+				positionOptions();
+			}
 		}
 	}
 
