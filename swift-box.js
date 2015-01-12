@@ -422,7 +422,7 @@
 
 	// Shim label behavior
 	swiftcore.on(document, 'click', 'label', function() {
-		var for_target = this['for']; // Bracket notation for IE8 compatibility
+		var for_target = this.getAttribute('for');
 		var element;
 
 		// Get the element the label is linked to
