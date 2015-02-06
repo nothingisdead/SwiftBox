@@ -2082,8 +2082,13 @@
 	 * @return {Number}   The position of A relative to B
 	 */
 	function defaultSort(a, b) {
+		// Empty values should appear at the top
+		if(a.value === '' && a.value !== b.value) {
+			return -1;
+		}
+		
 		if(a.text !== b.text) {
-			// Empty values should appear at the top
+			// Empty text should appear at the top
 			if(a.text === '') {
 				return -1;
 			}
