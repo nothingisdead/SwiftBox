@@ -2086,7 +2086,7 @@
 		if(a.value === '' && a.value !== b.value) {
 			return -1;
 		}
-		
+
 		if(a.text !== b.text) {
 			// Empty text should appear at the top
 			if(a.text === '') {
