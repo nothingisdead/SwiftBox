@@ -36,6 +36,7 @@ swift-box {
 	outline: 0;
 	border-radius: 3px;
 	background-color: #FFF;
+	color: #000;
 	font-family: arial;
 	font-size: inherit;
 	font-weight: normal;
@@ -60,7 +61,6 @@ swift-box[disabled] {
 	outline: none;
 	white-space: nowrap;
 	text-decoration: none;
-	color: #000;
 	cursor: inherit;
 }
 
