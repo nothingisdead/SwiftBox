@@ -1619,6 +1619,7 @@
 			indexes = [indexes];
 		}
 
+		var used_indexes     = {};
 		var changed_elements = [];
 
 		for(var i = 0; i < elements.length; ++i) {
@@ -1635,7 +1636,9 @@
 						continue;
 					}
 
-					if(option_array[index]) {
+					if(option_array[index] && !used_indexes[index]) {
+						used_indexes[index] = true;
+
 						new_indexes.push(index);
 					}
 				}
