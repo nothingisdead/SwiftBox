@@ -1643,7 +1643,7 @@
 					}
 				}
 
-				new_indexes.sort();
+				new_indexes.sort(sortIndexes);
 			}
 
 			// Set the new indexes
@@ -1863,6 +1863,16 @@
 	 */
 	function removeFocusClass(element) {
 		element.classList.remove('swift-box-focus');
+	}
+	
+	/**
+	 * Sort function for indexes
+	 * @param  {Number} a Value A
+	 * @param  {Number} b Value B
+	 * @return {Number}
+	 */
+	function sortIndexes(a, b) {
+		return a < b ? -1 : 1;
 	}
 
 	// =========================================================================
