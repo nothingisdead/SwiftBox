@@ -39,15 +39,18 @@
 	var jquery_input_selector = $.expr[':'].input;
 
 	$.expr[':'].input = function(element) {
-		var $element = $(element);
-
-		// If the element matches the original :input selector
-		if(jquery_input_selector(element)) {
-			// Make sure the element is not contained within the SwiftBox
-			return !$element.closest('swift-box').length;
+		// If this is a SwiftBox, it matches
+		if(element.tagName === 'SWIFT-BOX') {
+			return true;
 		}
 
-		return $element.is('swift-box');
+		// Check for SwiftBox hidden inputs
+		if(element.classList.contains('swift-box-hidden-input')) {
+			return jquery_input_selector(element) && !$(element).closest('swift-box').length;
+		}
+
+		// Finally, defer to the original matching function
+		return jquery_input_selector(element);
 	};
 
 	// Map properties to specific jQuery functions
